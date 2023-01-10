@@ -83,7 +83,7 @@ async fn main() {
 struct Submit {
     header: HeaderView,
     inputs: Vec<OutPoint>,
-    outputs: Vec<CellInfo>,
+    outputs: Vec<(OutPoint, CellInfo)>,
 }
 
 async fn submit_to_realyer(submits: HashMap<H256, Submit>) {

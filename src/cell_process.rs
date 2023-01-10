@@ -105,7 +105,11 @@ impl CellProcess {
                                                 }),
                                             }
                                         };
-                                        submit_entry.outputs.push(cell_info);
+                                        let outpoint = OutPoint {
+                                            tx_hash: tx_with_cells.tx_hash.clone(),
+                                            index: idx,
+                                        };
+                                        submit_entry.outputs.push((outpoint, cell_info));
                                     }
                                 }
                             }
