@@ -20,6 +20,16 @@ use crate::{
     global_state::GlobalState,
     rpc_server::{EmitterRpc, EmitterServer},
 };
+use emit_data::eth_tx::{send_eth_tx, IMAGE_CELL_ADDRESS};
+use emit_data::tx_data::convert_cell;
+use global_state::GlobalState;
+use rpc_client::{IndexerTip, RpcClient};
+use rpc_server::{EmitterRpc, EmitterServer};
+
+mod emit_data;
+mod global_state;
+mod rpc_server;
+mod ws_subscription;
 
 #[tokio::main]
 async fn main() {
@@ -104,6 +114,45 @@ async fn main() {
         log::info!("listen on {}", listen_url);
         handle.stopped().await;
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Submit {
+    header: HeaderView,
+    inputs: Vec<OutPoint>,
+    outputs: Vec<(OutPoint, CellInfo)>,
+}
+
+async fn submit_cells(submits: Vec<Submit>) {
+    for sub in submits {
+        println!("{}", serde_json::to_string_pretty(&sub).unwrap())
+    }
+
+    for data in submits {
+        send_eth_tx(convert_cell(data), IMAGE_CELL_ADDRESS)
+            .await
+            .expect("failed to emite cells");
+    }
+    println!("send eth tx done");
+}
+
+async fn submit_headers(headers: Vec<HeaderView>) {
+    for header in headers {
+        println!("{}", serde_json::to_string_pretty(&header).unwrap())
+    }
+}
+
+#[async_trait]
+pub(crate) trait SubmitProcess {
+    fn is_closed(&self) -> bool;
+    // if false return, it means this cell process should be shutdown
+    async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool;
+    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool;
+}
+
+pub(crate) trait TipState {
+    fn load(&self) -> &IndexerTip;
+    fn update(&mut self, current: IndexerTip);
 }
 
 struct ScanTipInner(AtomicPtr<IndexerTip>);
