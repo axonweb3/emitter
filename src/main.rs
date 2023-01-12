@@ -86,7 +86,7 @@ struct Submit {
     outputs: Vec<(OutPoint, CellInfo)>,
 }
 
-async fn submit_to_realyer(submits: HashMap<H256, Submit>) {
+async fn submit_to_relayer(submits: HashMap<H256, Submit>) {
     for (_, sub) in submits {
         println!("{}", serde_json::to_string_pretty(&sub).unwrap())
     }

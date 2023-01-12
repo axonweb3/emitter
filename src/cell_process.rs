@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::atomic::Ordering};
 use crate::{
     rpc_client::{CellType, IndexerTip, Order, RpcClient, Tx},
     rpc_server::RpcSearchKey,
-    submit_to_realyer, ScanTip, Submit,
+    submit_to_relayer, ScanTip, Submit,
 };
 pub(crate) struct CellProcess {
     pub key: RpcSearchKey,
@@ -85,10 +85,8 @@ impl CellProcess {
                                 let index = idx.value() as usize;
                                 match ty {
                                     CellType::Input => {
-                                        let outpoint = OutPoint {
-                                            tx_hash: tx_with_cells.tx_hash.clone(),
-                                            index: idx,
-                                        };
+                                        let outpoint =
+                                            tx.inner.inputs[index].previous_output.clone();
                                         submit_entry.inputs.push(outpoint)
                                     }
                                     CellType::Output => {
@@ -125,7 +123,7 @@ impl CellProcess {
                 }
             }
 
-            submit_to_realyer(submits).await;
+            submit_to_relayer(submits).await;
             let raw = self
                 .scan_tip
                 .0
