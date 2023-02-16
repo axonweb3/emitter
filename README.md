@@ -28,8 +28,9 @@ Register the cell you want to track
 
 ```
 search_key:
-    script - Script, supports prefix search
-    scrip_type - enum, lock | type
+    script - Script
+    script_type - enum, lock | type
+    script_search_mode - enum, prefix | exact | null - Script search mode, optional default is `prefix`, means search script with prefix
     filter - filter cells by following conditions, all conditions are optional
         script: if search script type is lock, filter cells by type script prefix, and vice versa
         script_len_range: [u64; 2], filter cells by script len range, [inclusive, exclusive]
@@ -92,7 +93,7 @@ Delete the registered cell
 ```
 search_key:
     script - Script, supports prefix search
-    scrip_type - enum, lock | type
+    script_type - enum, lock | type
     filter - filter cells by following conditions, all conditions are optional
         script: if search script type is lock, filter cells by type script prefix, and vice versa
         script_len_range: [u64; 2], filter cells by script len range, [inclusive, exclusive]

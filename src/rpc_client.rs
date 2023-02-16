@@ -111,10 +111,26 @@ impl Tx {
     }
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum IndexerScriptSearchMode {
+    /// Mode `prefix` search script with prefix
+    Prefix,
+    /// Mode `exact` search script with exact match
+    Exact,
+}
+
+impl Default for IndexerScriptSearchMode {
+    fn default() -> Self {
+        Self::Prefix
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchKey {
     pub script: Script,
     pub script_type: ScriptType,
+    pub script_search_mode: Option<IndexerScriptSearchMode>,
     pub filter: Option<SearchKeyFilter>,
     pub with_data: Option<bool>,
     pub group_by_transaction: Option<bool>,
