@@ -9,7 +9,9 @@ use std::sync::{atomic::AtomicPtr, Arc};
 
 use crate::{
     cell_process::CellProcess,
-    rpc_client::{IndexerTip, RpcClient, ScriptType, SearchKey, SearchKeyFilter},
+    rpc_client::{
+        IndexerScriptSearchMode, IndexerTip, RpcClient, ScriptType, SearchKey, SearchKeyFilter,
+    },
     ScanTip, ScanTipInner,
 };
 
@@ -17,6 +19,7 @@ use crate::{
 pub struct RpcSearchKey {
     pub script: Script,
     pub script_type: ScriptType,
+    pub script_search_mode: Option<IndexerScriptSearchMode>,
     pub filter: Option<RpcSearchKeyFilter>,
 }
 
@@ -30,6 +33,7 @@ impl RpcSearchKey {
             } else {
                 Some(RpcSearchKeyFilter::default().into_filter(block_range))
             },
+            script_search_mode: self.script_search_mode,
             with_data: None,
             group_by_transaction: Some(true),
         }
