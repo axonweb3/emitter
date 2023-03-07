@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::atomic::Ordering};
 use crate::{
     rpc_client::{CellType, IndexerTip, Order, RpcClient, Tx},
     rpc_server::RpcSearchKey,
-    submit_to_relayer, ScanTip, Submit,
+    submit_cells, ScanTip, Submit,
 };
 pub(crate) struct CellProcess {
     pub key: RpcSearchKey,
@@ -123,7 +123,7 @@ impl CellProcess {
                 }
             }
 
-            submit_to_relayer(submits).await;
+            submit_cells(submits).await;
             let raw = self
                 .scan_tip
                 .0

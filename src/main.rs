@@ -51,10 +51,16 @@ async fn main() {
 
     let client = RpcClient::new(matches.get_one::<String>("ckb_uri").unwrap());
 
-    let mut global =
-        GlobalState::load_from_dir(matches.get_one::<String>("store_path").unwrap().into());
+    let genesis = client.get_header_by_number(0.into()).await.unwrap();
+
+    let mut global = GlobalState::new(
+        matches.get_one::<String>("store_path").unwrap().into(),
+        genesis,
+    );
 
     let state = global.state.clone();
+
+    global.spawn_header_sync(client.clone());
 
     let cell_handles = global.spawn_cells(client.clone());
 
@@ -86,9 +92,15 @@ struct Submit {
     outputs: Vec<(OutPoint, CellInfo)>,
 }
 
-async fn submit_to_relayer(submits: HashMap<H256, Submit>) {
+async fn submit_cells(submits: HashMap<H256, Submit>) {
     for (_, sub) in submits {
         println!("{}", serde_json::to_string_pretty(&sub).unwrap())
+    }
+}
+
+async fn submit_headers(headers: Vec<HeaderView>) {
+    for header in headers {
+        println!("{}", serde_json::to_string_pretty(&header).unwrap())
     }
 }
 

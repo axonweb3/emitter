@@ -144,6 +144,49 @@ http://localhost:8120
 </p>
 </details>
 
+### header_sync_start
+
+Set the header from which to start synchronization, if not set, start with genesis block
+
+#### Parameters
+
+```
+u64, start block number
+```
+
+#### Returns
+
+```
+bool, set success or failure
+```
+
+#### Examples
+
+```bash
+echo '{
+    "id": 2,
+    "jsonrpc": "2.0",
+    "method": "header_sync_start",
+    "params": ["0x2f00"]
+}' \
+| curl -H 'content-type: application/json' -d @- \
+http://localhost:8120
+```
+
+<details>
+    <summary>click to expand result</summary>
+<p>
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": true,
+  "id": 2
+}
+```
+
+</p>
+</details>
 
 ### info
 
@@ -189,21 +232,25 @@ http://localhost:8120
 {
   "jsonrpc": "2.0",
   "result": [
-    [
-      {
-        "script": {
-                "code_hash": "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
-                "hash_type": "type",
-                "args": "0x5989ae415bb667931a99896e5fbbfad9ba53a223"
-            },
-        "script_type": "lock",
-        "filter": null
-      },
-      {
-        "block_hash": "0x9bfe99915bd967629d2bccd785ae2a972d2ec82cb8e0d4ebc86baa5c14d89f85",
-        "block_number": "0x86f6cd"
-      }
-    ]
+    "cell_states": [
+        {
+            "script": {
+                    "code_hash": "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
+                    "hash_type": "type",
+                    "args": "0x5989ae415bb667931a99896e5fbbfad9ba53a223"
+                },
+            "script_type": "lock",
+            "filter": null
+        },
+        {
+            "block_hash": "0x9bfe99915bd967629d2bccd785ae2a972d2ec82cb8e0d4ebc86baa5c14d89f85",
+            "block_number": "0x86f6cd"
+        }
+    ],
+    "header_state":{
+      "block_hash":"0x9e2f631a52404a973b94e72f906e489ce840a321789bd00286b549bd01737133",
+      "block_number":"0xf00"
+   }
   ],
   "id": 1
 }
