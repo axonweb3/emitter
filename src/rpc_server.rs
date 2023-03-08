@@ -5,10 +5,14 @@ use jsonrpsee::{
 };
 use serde::{Deserialize, Serialize};
 
-use std::sync::{atomic::AtomicPtr, Arc};
+use std::sync::{
+    atomic::{AtomicPtr, Ordering},
+    Arc,
+};
 
 use crate::{
     cell_process::CellProcess,
+    global_state::State,
     rpc_client::{
         IndexerScriptSearchMode, IndexerTip, RpcClient, ScriptType, SearchKey, SearchKeyFilter,
     },
@@ -69,11 +73,14 @@ pub trait Emitter {
     async fn delete(&self, search_key: RpcSearchKey) -> Result<bool, Error>;
 
     #[method(name = "info")]
-    async fn info(&self) -> Result<Vec<(RpcSearchKey, ScanTip)>, Error>;
+    async fn info(&self) -> Result<State, Error>;
+
+    #[method(name = "header_sync_start")]
+    async fn header_sync_start(&self, number: BlockNumber) -> Result<bool, Error>;
 }
 
 pub(crate) struct EmitterRpc {
-    pub state: Arc<dashmap::DashMap<RpcSearchKey, ScanTip>>,
+    pub state: State,
     pub cell_handles: dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>,
     pub client: RpcClient,
 }
@@ -81,7 +88,7 @@ pub(crate) struct EmitterRpc {
 #[async_trait]
 impl EmitterServer for EmitterRpc {
     async fn register(&self, search_key: RpcSearchKey, start: BlockNumber) -> Result<bool, Error> {
-        if self.state.contains_key(&search_key) {
+        if self.state.cell_states.contains_key(&search_key) {
             return Ok(false);
         }
         let indexer_tip = self
@@ -107,7 +114,9 @@ impl EmitterServer for EmitterRpc {
                 )))))
             };
 
-            self.state.insert(search_key.clone(), scan_tip.clone());
+            self.state
+                .cell_states
+                .insert(search_key.clone(), scan_tip.clone());
 
             let mut cell_process = CellProcess {
                 key: search_key.clone(),
@@ -127,7 +136,7 @@ impl EmitterServer for EmitterRpc {
     }
 
     async fn delete(&self, search_key: RpcSearchKey) -> Result<bool, Error> {
-        if self.state.remove(&search_key).is_some() {
+        if self.state.cell_states.remove(&search_key).is_some() {
             let handle = self.cell_handles.remove(&search_key).unwrap();
             handle.1.abort();
             return Ok(true);
@@ -135,11 +144,34 @@ impl EmitterServer for EmitterRpc {
         Ok(false)
     }
 
-    async fn info(&self) -> Result<Vec<(RpcSearchKey, ScanTip)>, Error> {
-        Ok(self
-            .state
-            .iter()
-            .map(|kv| (kv.key().clone(), kv.value().clone()))
-            .collect::<Vec<_>>())
+    async fn info(&self) -> Result<State, Error> {
+        Ok(self.state.clone())
+    }
+
+    async fn header_sync_start(&self, number: BlockNumber) -> Result<bool, Error> {
+        let current =
+            unsafe { (&*self.state.header_state.0 .0.load(Ordering::Acquire)).block_number };
+        if number < current {
+            Ok(false)
+        } else {
+            let new_header = self.client.get_header_by_number(number).await?;
+            let new_tip = {
+                IndexerTip {
+                    block_hash: new_header.hash,
+                    block_number: new_header.inner.number,
+                }
+            };
+            let raw = self
+                .state
+                .header_state
+                .0
+                 .0
+                .swap(Box::into_raw(Box::new(new_tip)), Ordering::AcqRel);
+
+            unsafe {
+                drop(Box::from_raw(raw));
+            }
+            Ok(true)
+        }
     }
 }
