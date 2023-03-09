@@ -125,11 +125,8 @@ pub struct Submit {
 
 async fn submit_cells(submits: Vec<Submit>) {
     for sub in submits {
-        println!("{}", serde_json::to_string_pretty(&sub).unwrap())
-    }
-
-    for data in submits {
-        send_eth_tx(convert_cell(data), IMAGE_CELL_ADDRESS)
+        println!("{}", serde_json::to_string_pretty(&sub).unwrap());
+        send_eth_tx(convert_cell(sub), IMAGE_CELL_ADDRESS)
             .await
             .expect("failed to emite cells");
     }
