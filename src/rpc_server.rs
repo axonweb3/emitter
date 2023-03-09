@@ -11,7 +11,7 @@ use std::sync::{
 };
 
 use crate::{
-    cell_process::CellProcess,
+    cell_process::{CellProcess, RpcSubmit},
     global_state::State,
     rpc_client::{
         IndexerScriptSearchMode, IndexerTip, RpcClient, ScriptType, SearchKey, SearchKeyFilter,
@@ -81,7 +81,7 @@ pub trait Emitter {
 
 pub(crate) struct EmitterRpc {
     pub state: State,
-    pub cell_handles: dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>,
+    pub cell_handles: Arc<dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>>,
     pub client: RpcClient,
 }
 
@@ -122,6 +122,8 @@ impl EmitterServer for EmitterRpc {
                 key: search_key.clone(),
                 client: self.client.clone(),
                 scan_tip,
+                process_fn: RpcSubmit,
+                stop: false,
             };
 
             let handle = tokio::spawn(async move {
@@ -137,9 +139,10 @@ impl EmitterServer for EmitterRpc {
 
     async fn delete(&self, search_key: RpcSearchKey) -> Result<bool, Error> {
         if self.state.cell_states.remove(&search_key).is_some() {
-            let handle = self.cell_handles.remove(&search_key).unwrap();
-            handle.1.abort();
-            return Ok(true);
+            if let Some(handle) = self.cell_handles.get(&search_key) {
+                handle.abort();
+                return Ok(true);
+            }
         }
         Ok(false)
     }

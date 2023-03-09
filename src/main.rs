@@ -1,6 +1,6 @@
 use ckb_jsonrpc_types::{CellInfo, HeaderView, OutPoint};
 use ckb_types::H256;
-use jsonrpsee::http_server::HttpServerBuilder;
+use jsonrpsee::{http_server::HttpServerBuilder, ws_server::WsServerBuilder};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::{
@@ -15,10 +15,13 @@ use global_state::GlobalState;
 use rpc_client::{IndexerTip, RpcClient};
 use rpc_server::{EmitterRpc, EmitterServer};
 
+pub use rpc_server::RpcSearchKey;
+
 mod cell_process;
 mod global_state;
 mod rpc_client;
 mod rpc_server;
+mod ws_subscription;
 
 #[tokio::main]
 async fn main() {
@@ -45,48 +48,66 @@ async fn main() {
         .help("Sets the indexer store path to use")
         .required(true)
         .action(clap::ArgAction::Set),
+    ).arg(
+        clap::Arg::new("ws")
+        .long("ws")
+        .conflicts_with("store_path")
+        .help("Use ws mode instead of http rpc mode, ws only has subscription mode")
+        .action(clap::ArgAction::SetTrue)
     );
 
     let matches = cmd.get_matches();
 
     let client = RpcClient::new(matches.get_one::<String>("ckb_uri").unwrap());
 
-    let genesis = client.get_header_by_number(0.into()).await.unwrap();
-
-    let mut global = GlobalState::new(
-        matches.get_one::<String>("store_path").unwrap().into(),
-        genesis,
-    );
-
-    let state = global.state.clone();
-
-    global.spawn_header_sync(client.clone());
-
-    let cell_handles = global.spawn_cells(client.clone());
-
-    let _global_handle = tokio::spawn(async move { global.run().await });
-
-    let rpc = EmitterRpc {
-        state,
-        cell_handles,
-        client,
-    }
-    .into_rpc();
-
     let listen_url = matches.get_one::<String>("listen_uri").unwrap();
-    let handle = HttpServerBuilder::new()
-        .build(listen_url)
-        .await
-        .unwrap()
-        .start(rpc)
-        .unwrap();
+    if matches.get_flag("ws") {
+        let rpc = ws_subscription::ws_subscription_module(client).await;
+        let handle = WsServerBuilder::new()
+            .build(listen_url)
+            .await
+            .unwrap()
+            .start(rpc)
+            .unwrap();
+        log::info!("websocket listen on {}", listen_url);
+        handle.await;
+    } else {
+        let genesis = client.get_header_by_number(0.into()).await.unwrap();
 
-    log::info!("listen on {}", listen_url);
-    handle.await;
+        let mut global = GlobalState::new(
+            matches.get_one::<String>("store_path").unwrap().into(),
+            genesis,
+        );
+
+        let state = global.state.clone();
+
+        global.spawn_header_sync(client.clone());
+
+        let cell_handles = global.spawn_cells(client.clone());
+
+        let _global_handle = tokio::spawn(async move { global.run().await });
+
+        let rpc = EmitterRpc {
+            state,
+            cell_handles,
+            client,
+        }
+        .into_rpc();
+
+        let handle = HttpServerBuilder::new()
+            .build(listen_url)
+            .await
+            .unwrap()
+            .start(rpc)
+            .unwrap();
+
+        log::info!("listen on {}", listen_url);
+        handle.await;
+    }
 }
 
 #[derive(Serialize, Deserialize)]
-struct Submit {
+pub struct Submit {
     header: HeaderView,
     inputs: Vec<OutPoint>,
     outputs: Vec<(OutPoint, CellInfo)>,

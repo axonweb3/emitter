@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    cell_process::CellProcess,
+    cell_process::{CellProcess, RpcSubmit},
     rpc_client::{IndexerTip, RpcClient},
     rpc_server::RpcSearchKey,
     submit_headers, ScanTip, ScanTipInner,
@@ -64,6 +64,7 @@ impl<'a> Deserialize<'a> for State {
 pub(crate) struct GlobalState {
     pub state: State,
     path: PathBuf,
+    cell_handles: Arc<dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>>,
 }
 
 impl Drop for GlobalState {
@@ -85,7 +86,11 @@ impl GlobalState {
         };
         let state = Self::load_from_dir(path.clone(), default_scan_tip);
 
-        Self { state, path }
+        Self {
+            cell_handles: Arc::new(dashmap::DashMap::with_capacity(state.cell_states.len())),
+            state,
+            path,
+        }
     }
 
     pub async fn run(&mut self) {
@@ -94,6 +99,21 @@ impl GlobalState {
 
         loop {
             interval.tick().await;
+
+            // clean shutdown task
+            let mut shutdown_task = Vec::new();
+            self.cell_handles.retain(|k, v| {
+                if v.is_finished() {
+                    shutdown_task.push(k.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+            shutdown_task.into_iter().for_each(|k| {
+                self.state.cell_states.remove(&k);
+            });
+
             self.dump_to_dir(self.path.clone());
         }
     }
@@ -101,23 +121,24 @@ impl GlobalState {
     pub fn spawn_cells(
         &self,
         client: RpcClient,
-    ) -> dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>> {
-        let res = dashmap::DashMap::with_capacity(self.state.cell_states.len());
+    ) -> Arc<dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>> {
         if !self.state.cell_states.is_empty() {
             for kv in self.state.cell_states.iter() {
                 let mut cell_process = CellProcess {
                     key: kv.key().clone(),
                     scan_tip: kv.value().clone(),
                     client: client.clone(),
+                    process_fn: RpcSubmit,
+                    stop: false,
                 };
 
                 let handle = tokio::spawn(async move {
                     cell_process.run().await;
                 });
-                res.insert(kv.key().clone(), handle);
+                self.cell_handles.insert(kv.key().clone(), handle);
             }
         }
-        res
+        self.cell_handles.clone()
     }
 
     pub fn spawn_header_sync(&self, client: RpcClient) {

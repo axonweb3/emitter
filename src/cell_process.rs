@@ -1,5 +1,6 @@
 use ckb_jsonrpc_types::{CellData, CellInfo, OutPoint};
-use ckb_types::{packed, prelude::Unpack};
+use ckb_types::{packed, prelude::Unpack, H256};
+use jsonrpsee::core::async_trait;
 use std::{collections::HashMap, sync::atomic::Ordering};
 
 use crate::{
@@ -7,25 +8,77 @@ use crate::{
     rpc_server::RpcSearchKey,
     submit_cells, ScanTip, Submit,
 };
-pub(crate) struct CellProcess {
-    pub key: RpcSearchKey,
-    pub scan_tip: ScanTip,
-    pub client: RpcClient,
+
+pub(crate) trait TipState {
+    fn load(&self) -> &IndexerTip;
+    fn update(&mut self, current: IndexerTip);
 }
 
-impl CellProcess {
+impl TipState for ScanTip {
+    fn load(&self) -> &IndexerTip {
+        unsafe { &*self.0 .0.load(Ordering::Acquire) }
+    }
+
+    fn update(&mut self, current: IndexerTip) {
+        let raw = self
+            .0
+             .0
+            .swap(Box::into_raw(Box::new(current)), Ordering::AcqRel);
+
+        unsafe {
+            drop(Box::from_raw(raw));
+        }
+    }
+}
+
+#[async_trait]
+pub(crate) trait SubmitProcess {
+    fn is_closed(&self) -> bool;
+    // if false return, it means this cell process should be shutdown
+    async fn submit(&mut self, cells: HashMap<H256, Submit>) -> bool;
+}
+
+pub(crate) struct RpcSubmit;
+
+#[async_trait]
+impl SubmitProcess for RpcSubmit {
+    fn is_closed(&self) -> bool {
+        false
+    }
+
+    async fn submit(&mut self, cells: HashMap<H256, Submit>) -> bool {
+        submit_cells(cells).await;
+        true
+    }
+}
+pub(crate) struct CellProcess<T, P> {
+    pub key: RpcSearchKey,
+    pub scan_tip: T,
+    pub client: RpcClient,
+    pub process_fn: P,
+    pub stop: bool,
+}
+
+impl<T, P> CellProcess<T, P>
+where
+    T: TipState,
+    P: SubmitProcess,
+{
     pub async fn run(&mut self) {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
+            if self.stop || self.process_fn.is_closed() {
+                break;
+            }
             self.scan().await;
         }
     }
 
-    async fn scan(&self) {
+    async fn scan(&mut self) {
         let indexer_tip = self.client.get_indexer_tip().await.unwrap();
-        let old_tip = unsafe { &*self.scan_tip.0 .0.load(Ordering::Acquire) }.clone();
+        let old_tip = self.scan_tip.load().clone();
 
         if indexer_tip.block_number.value().saturating_sub(24) > old_tip.block_number.value() {
             // use tip - 24 as new tip
@@ -123,16 +176,10 @@ impl CellProcess {
                 }
             }
 
-            submit_cells(submits).await;
-            let raw = self
-                .scan_tip
-                .0
-                 .0
-                .swap(Box::into_raw(Box::new(new_tip)), Ordering::AcqRel);
-
-            unsafe {
-                drop(Box::from_raw(raw));
+            if !self.process_fn.submit(submits).await {
+                self.stop = true
             }
+            self.scan_tip.update(new_tip);
         }
     }
 }
