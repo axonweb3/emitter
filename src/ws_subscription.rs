@@ -1,3 +1,4 @@
+use ckb_jsonrpc_types::{BlockNumber, HeaderView};
 use ckb_types::H256;
 use jsonrpsee::{
     core::async_trait,
@@ -7,13 +8,13 @@ use jsonrpsee::{
 
 use std::{collections::HashMap, io};
 
-use crate::rpc_client::{IndexerTip, RpcClient};
-use crate::rpc_server::RpcSearchKey;
 use crate::{
-    cell_process::{CellProcess, SubmitProcess, TipState},
-    Submit,
+    cell_process::CellProcess,
+    header_sync::HeaderSyncProcess,
+    rpc_client::{IndexerTip, RpcClient},
+    rpc_server::RpcSearchKey,
+    Submit, SubmitProcess, TipState,
 };
-use ckb_jsonrpc_types::BlockNumber;
 
 impl TipState for IndexerTip {
     fn load(&self) -> &IndexerTip {
@@ -31,14 +32,27 @@ impl SubmitProcess for SubscriptionSink {
         self.is_closed()
     }
 
-    async fn submit(&mut self, cells: HashMap<H256, Submit>) -> bool {
+    async fn submit_cells(&mut self, cells: HashMap<H256, Submit>) -> bool {
         if cells.is_empty() {
             return true;
         }
         match self.send(&cells) {
             Ok(r) => r,
             Err(e) => {
-                log::error!("submit error: {}", e);
+                log::error!("submit cells error: {}", e);
+                false
+            }
+        }
+    }
+
+    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool {
+        if headers.is_empty() {
+            return true;
+        }
+        match self.send(&headers) {
+            Ok(r) => r,
+            Err(e) => {
+                log::error!("submit headers error: {}", e);
                 false
             }
         }
@@ -88,69 +102,20 @@ pub async fn ws_subscription_module(client: RpcClient) -> RpcModule<RpcClient> {
                     let start: BlockNumber = iter.next()?;
                     let client = ctx.as_ref().clone();
                     tokio::spawn(async move {
-                        let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
-                        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-
-                        let mut start_tip = {
+                        let start_tip = {
                             let header = client.get_header_by_number(start).await.unwrap();
                             IndexerTip {
                                 block_hash: header.hash,
                                 block_number: header.inner.number,
                             }
                         };
-                        loop {
-                            let indexer_tip = client.get_indexer_tip().await.unwrap();
-                            if indexer_tip.block_number.value().saturating_sub(24)
-                                > start_tip.block_number.value()
-                            {
-                                let new_tip = {
-                                    let new = client
-                                        .get_header_by_number(
-                                            // 256 headers as a step
-                                            std::cmp::min(
-                                                indexer_tip.block_number.value().saturating_sub(24),
-                                                start_tip.block_number.value() + 256,
-                                            )
-                                            .into(),
-                                        )
-                                        .await
-                                        .unwrap();
-                                    IndexerTip {
-                                        block_hash: new.hash,
-                                        block_number: new.inner.number,
-                                    }
-                                };
-
-                                let mut headers = Vec::with_capacity(
-                                    (new_tip.block_number.value() - start_tip.block_number.value())
-                                        as usize,
-                                );
-
-                                for i in start_tip.block_number.value() + 1
-                                    ..=new_tip.block_number.value()
-                                {
-                                    let header =
-                                        client.get_header_by_number(i.into()).await.unwrap();
-                                    headers.push(header);
-                                }
-
-                                match sink.send(&headers) {
-                                    Ok(r) => {
-                                        if !r {
-                                            break;
-                                        }
-                                    }
-                                    Err(e) => {
-                                        log::error!("submit error: {}", e);
-                                        break;
-                                    }
-                                }
-
-                                start_tip = new_tip;
-                            } else {
-                                interval.tick().await;
-                            }
-                        }
+                        let mut header_sync = HeaderSyncProcess {
+                            scan_tip: start_tip,
+                            client,
+                            process_fn: sink,
+                            stop: false,
+                        };
+                        header_sync.run().await;
                     });
                 }
                 _ => {

@@ -1,6 +1,6 @@
 use ckb_jsonrpc_types::{CellInfo, HeaderView, OutPoint};
 use ckb_types::H256;
-use jsonrpsee::{http_server::HttpServerBuilder, ws_server::WsServerBuilder};
+use jsonrpsee::{core::async_trait, http_server::HttpServerBuilder, ws_server::WsServerBuilder};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::{
@@ -15,10 +15,9 @@ use global_state::GlobalState;
 use rpc_client::{IndexerTip, RpcClient};
 use rpc_server::{EmitterRpc, EmitterServer};
 
-pub use rpc_server::RpcSearchKey;
-
 mod cell_process;
 mod global_state;
+mod header_sync;
 mod rpc_client;
 mod rpc_server;
 mod ws_subscription;
@@ -123,6 +122,19 @@ async fn submit_headers(headers: Vec<HeaderView>) {
     for header in headers {
         println!("{}", serde_json::to_string_pretty(&header).unwrap())
     }
+}
+
+#[async_trait]
+pub(crate) trait SubmitProcess {
+    fn is_closed(&self) -> bool;
+    // if false return, it means this cell process should be shutdown
+    async fn submit_cells(&mut self, cells: HashMap<H256, Submit>) -> bool;
+    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool;
+}
+
+pub(crate) trait TipState {
+    fn load(&self) -> &IndexerTip;
+    fn update(&mut self, current: IndexerTip);
 }
 
 struct ScanTipInner(AtomicPtr<IndexerTip>);

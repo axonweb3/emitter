@@ -33,9 +33,9 @@ socket.onmessage = function(event) {
   console.log(`Data received from server: ${event.data}`);
 }
 
-socket.send(`{"id": 2, "jsonrpc": "2.0", "method": "subscribe", "params": ["header_sync", "0x0"]}`)
+socket.send(`{"id": 2, "jsonrpc": "2.0", "method": "emitter_subscription", "params": ["header_sync", "0x0"]}`)
 
-socket.send(`{"id": 2, "jsonrpc": "2.0", "method": "unsubscribe", "params": [0]}`)
+socket.send(`{"id": 2, "jsonrpc": "2.0", "method": "emitter_unsubscribe", "params": [0]}`)
 ```
 
 #### Parameters
@@ -60,7 +60,7 @@ socket.onmessage = function(event) {
 socket.send(` {
     "id": 2,
     "jsonrpc": "2.0",
-    "method": "subscribe",
+    "method": "emitter_subscription",
     "params": ["cell_filter", {
         "script": {
             "code_hash": "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
@@ -75,7 +75,7 @@ socket.send(` {
 socket.send(` {
     "id": 2,
     "jsonrpc": "2.0",
-    "method": "unsubscribe",
+    "method": "emitter_unsubscribe",
     "params": [0]
 }`)
 ```
@@ -99,7 +99,7 @@ start: u64, start block number
 
 ```
 {
-    "header_hash": { 
+    "H256": { 
         "header": HeaderView, 
         "inputs": [
             OutPoint
@@ -112,6 +112,7 @@ start: u64, start block number
     }
 }
 ```
+- H256: header hash hex
 - [HeaderView](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-headerview)
 - [OutPoint](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-outpoint)
 - [CellInfo](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-cellinfo)

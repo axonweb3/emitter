@@ -4,17 +4,15 @@ use std::{
     fs::{copy, create_dir_all, remove_file, rename, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicPtr, Ordering},
-        Arc,
-    },
+    sync::{atomic::AtomicPtr, Arc},
 };
 
 use crate::{
     cell_process::{CellProcess, RpcSubmit},
+    header_sync::HeaderSyncProcess,
     rpc_client::{IndexerTip, RpcClient},
     rpc_server::RpcSearchKey,
-    submit_headers, ScanTip, ScanTipInner,
+    ScanTip, ScanTipInner,
 };
 
 #[derive(Clone)]
@@ -143,57 +141,15 @@ impl GlobalState {
 
     pub fn spawn_header_sync(&self, client: RpcClient) {
         let state = self.state.header_state.clone();
+
+        let mut header_sync = HeaderSyncProcess {
+            scan_tip: state,
+            client,
+            process_fn: RpcSubmit,
+            stop: false,
+        };
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-
-            loop {
-                let indexer_tip = client.get_indexer_tip().await.unwrap();
-                let old_tip = unsafe { &*state.0 .0.load(Ordering::Acquire) }.clone();
-                if indexer_tip.block_number.value().saturating_sub(24)
-                    > old_tip.block_number.value()
-                {
-                    let new_tip = {
-                        let new = client
-                            .get_header_by_number(
-                                // 256 headers as a step
-                                std::cmp::min(
-                                    indexer_tip.block_number.value().saturating_sub(24),
-                                    old_tip.block_number.value() + 256,
-                                )
-                                .into(),
-                            )
-                            .await
-                            .unwrap();
-                        IndexerTip {
-                            block_hash: new.hash,
-                            block_number: new.inner.number,
-                        }
-                    };
-
-                    let mut headers = Vec::with_capacity(
-                        (new_tip.block_number.value() - old_tip.block_number.value()) as usize,
-                    );
-
-                    for i in old_tip.block_number.value() + 1..=new_tip.block_number.value() {
-                        let header = client.get_header_by_number(i.into()).await.unwrap();
-                        headers.push(header);
-                    }
-
-                    submit_headers(headers).await;
-
-                    let raw = state
-                        .0
-                         .0
-                        .swap(Box::into_raw(Box::new(new_tip)), Ordering::AcqRel);
-
-                    unsafe {
-                        drop(Box::from_raw(raw));
-                    }
-                } else {
-                    interval.tick().await;
-                }
-            }
+            header_sync.run().await;
         });
     }
 

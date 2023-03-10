@@ -1,4 +1,4 @@
-use ckb_jsonrpc_types::{CellData, CellInfo, OutPoint};
+use ckb_jsonrpc_types::{CellData, CellInfo, HeaderView, OutPoint};
 use ckb_types::{packed, prelude::Unpack, H256};
 use jsonrpsee::core::async_trait;
 use std::{collections::HashMap, sync::atomic::Ordering};
@@ -6,13 +6,8 @@ use std::{collections::HashMap, sync::atomic::Ordering};
 use crate::{
     rpc_client::{CellType, IndexerTip, Order, RpcClient, Tx},
     rpc_server::RpcSearchKey,
-    submit_cells, ScanTip, Submit,
+    submit_cells, submit_headers, ScanTip, Submit, SubmitProcess, TipState,
 };
-
-pub(crate) trait TipState {
-    fn load(&self) -> &IndexerTip;
-    fn update(&mut self, current: IndexerTip);
-}
 
 impl TipState for ScanTip {
     fn load(&self) -> &IndexerTip {
@@ -31,13 +26,6 @@ impl TipState for ScanTip {
     }
 }
 
-#[async_trait]
-pub(crate) trait SubmitProcess {
-    fn is_closed(&self) -> bool;
-    // if false return, it means this cell process should be shutdown
-    async fn submit(&mut self, cells: HashMap<H256, Submit>) -> bool;
-}
-
 pub(crate) struct RpcSubmit;
 
 #[async_trait]
@@ -46,8 +34,13 @@ impl SubmitProcess for RpcSubmit {
         false
     }
 
-    async fn submit(&mut self, cells: HashMap<H256, Submit>) -> bool {
+    async fn submit_cells(&mut self, cells: HashMap<H256, Submit>) -> bool {
         submit_cells(cells).await;
+        true
+    }
+
+    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool {
+        submit_headers(headers).await;
         true
     }
 }
@@ -176,7 +169,7 @@ where
                 }
             }
 
-            if !self.process_fn.submit(submits).await {
+            if !self.process_fn.submit_cells(submits).await {
                 self.stop = true
             }
             self.scan_tip.update(new_tip);
