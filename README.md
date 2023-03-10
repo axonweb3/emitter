@@ -99,20 +99,21 @@ start: u64, start block number
 
 ```
 {
-    "H256": { 
-        "header": HeaderView, 
-        "inputs": [
-            OutPoint
-        ], 
-        "Outputs": [
-            [
-                OutPoint, CellInfo
+    [   
+        {
+            "header": HeaderView, 
+            "inputs": [
+                OutPoint
+            ], 
+            "outputs": [
+                [
+                    OutPoint, CellInfo
+                ]
             ]
-        ]
-    }
+        }
+    ]
 }
 ```
-- H256: header hash hex
 - [HeaderView](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-headerview)
 - [OutPoint](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-outpoint)
 - [CellInfo](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-cellinfo)

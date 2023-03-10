@@ -1,5 +1,5 @@
 use ckb_jsonrpc_types::{CellData, CellInfo, HeaderView, OutPoint};
-use ckb_types::{packed, prelude::Unpack, H256};
+use ckb_types::{packed, prelude::Unpack};
 use jsonrpsee::core::async_trait;
 use std::{collections::HashMap, sync::atomic::Ordering};
 
@@ -34,7 +34,7 @@ impl SubmitProcess for RpcSubmit {
         false
     }
 
-    async fn submit_cells(&mut self, cells: HashMap<H256, Submit>) -> bool {
+    async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool {
         submit_cells(cells).await;
         true
     }
@@ -169,7 +169,10 @@ where
                 }
             }
 
-            if !self.process_fn.submit_cells(submits).await {
+            let mut cells = submits.into_iter().map(|(_, v)| v).collect::<Vec<Submit>>();
+            cells.sort_unstable_by_key(|v| v.header.inner.number.value());
+
+            if !self.process_fn.submit_cells(cells).await {
                 self.stop = true
             }
             self.scan_tip.update(new_tip);

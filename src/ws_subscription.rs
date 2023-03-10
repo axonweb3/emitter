@@ -1,12 +1,11 @@
 use ckb_jsonrpc_types::{BlockNumber, HeaderView};
-use ckb_types::H256;
 use jsonrpsee::{
     core::async_trait,
     types::error::CallError,
     ws_server::{RpcModule, SubscriptionSink},
 };
 
-use std::{collections::HashMap, io};
+use std::io;
 
 use crate::{
     cell_process::CellProcess,
@@ -32,7 +31,7 @@ impl SubmitProcess for SubscriptionSink {
         self.is_closed()
     }
 
-    async fn submit_cells(&mut self, cells: HashMap<H256, Submit>) -> bool {
+    async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool {
         if cells.is_empty() {
             return true;
         }

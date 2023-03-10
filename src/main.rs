@@ -1,14 +1,10 @@
 use ckb_jsonrpc_types::{CellInfo, HeaderView, OutPoint};
-use ckb_types::H256;
 use jsonrpsee::{core::async_trait, http_server::HttpServerBuilder, ws_server::WsServerBuilder};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicPtr, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicPtr, Ordering},
+    Arc,
 };
 
 use global_state::GlobalState;
@@ -112,8 +108,8 @@ pub struct Submit {
     outputs: Vec<(OutPoint, CellInfo)>,
 }
 
-async fn submit_cells(submits: HashMap<H256, Submit>) {
-    for (_, sub) in submits {
+async fn submit_cells(submits: Vec<Submit>) {
+    for sub in submits {
         println!("{}", serde_json::to_string_pretty(&sub).unwrap())
     }
 }
@@ -128,7 +124,7 @@ async fn submit_headers(headers: Vec<HeaderView>) {
 pub(crate) trait SubmitProcess {
     fn is_closed(&self) -> bool;
     // if false return, it means this cell process should be shutdown
-    async fn submit_cells(&mut self, cells: HashMap<H256, Submit>) -> bool;
+    async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool;
     async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool;
 }
 
