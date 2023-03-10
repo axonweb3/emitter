@@ -4,17 +4,15 @@ use std::{
     fs::{copy, create_dir_all, remove_file, rename, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicPtr, Ordering},
-        Arc,
-    },
+    sync::{atomic::AtomicPtr, Arc},
 };
 
 use crate::{
-    cell_process::CellProcess,
+    cell_process::{CellProcess, RpcSubmit},
+    header_sync::HeaderSyncProcess,
     rpc_client::{IndexerTip, RpcClient},
     rpc_server::RpcSearchKey,
-    submit_headers, ScanTip, ScanTipInner,
+    ScanTip, ScanTipInner,
 };
 
 #[derive(Clone)]
@@ -64,6 +62,7 @@ impl<'a> Deserialize<'a> for State {
 pub(crate) struct GlobalState {
     pub state: State,
     path: PathBuf,
+    cell_handles: Arc<dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>>,
 }
 
 impl Drop for GlobalState {
@@ -85,7 +84,11 @@ impl GlobalState {
         };
         let state = Self::load_from_dir(path.clone(), default_scan_tip);
 
-        Self { state, path }
+        Self {
+            cell_handles: Arc::new(dashmap::DashMap::with_capacity(state.cell_states.len())),
+            state,
+            path,
+        }
     }
 
     pub async fn run(&mut self) {
@@ -94,6 +97,21 @@ impl GlobalState {
 
         loop {
             interval.tick().await;
+
+            // clean shutdown task
+            let mut shutdown_task = Vec::new();
+            self.cell_handles.retain(|k, v| {
+                if v.is_finished() {
+                    shutdown_task.push(k.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+            shutdown_task.into_iter().for_each(|k| {
+                self.state.cell_states.remove(&k);
+            });
+
             self.dump_to_dir(self.path.clone());
         }
     }
@@ -101,78 +119,37 @@ impl GlobalState {
     pub fn spawn_cells(
         &self,
         client: RpcClient,
-    ) -> dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>> {
-        let res = dashmap::DashMap::with_capacity(self.state.cell_states.len());
+    ) -> Arc<dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>> {
         if !self.state.cell_states.is_empty() {
             for kv in self.state.cell_states.iter() {
                 let mut cell_process = CellProcess {
                     key: kv.key().clone(),
                     scan_tip: kv.value().clone(),
                     client: client.clone(),
+                    process_fn: RpcSubmit,
+                    stop: false,
                 };
 
                 let handle = tokio::spawn(async move {
                     cell_process.run().await;
                 });
-                res.insert(kv.key().clone(), handle);
+                self.cell_handles.insert(kv.key().clone(), handle);
             }
         }
-        res
+        self.cell_handles.clone()
     }
 
     pub fn spawn_header_sync(&self, client: RpcClient) {
         let state = self.state.header_state.clone();
+
+        let mut header_sync = HeaderSyncProcess {
+            scan_tip: state,
+            client,
+            process_fn: RpcSubmit,
+            stop: false,
+        };
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-
-            loop {
-                let indexer_tip = client.get_indexer_tip().await.unwrap();
-                let old_tip = unsafe { &*state.0 .0.load(Ordering::Acquire) }.clone();
-                if indexer_tip.block_number.value().saturating_sub(24)
-                    > old_tip.block_number.value()
-                {
-                    let new_tip = {
-                        let new = client
-                            .get_header_by_number(
-                                // 256 headers as a step
-                                std::cmp::min(
-                                    indexer_tip.block_number.value().saturating_sub(24),
-                                    old_tip.block_number.value() + 256,
-                                )
-                                .into(),
-                            )
-                            .await
-                            .unwrap();
-                        IndexerTip {
-                            block_hash: new.hash,
-                            block_number: new.inner.number,
-                        }
-                    };
-
-                    let mut headers = Vec::with_capacity(
-                        (new_tip.block_number.value() - old_tip.block_number.value()) as usize,
-                    );
-
-                    for i in old_tip.block_number.value() + 1..=new_tip.block_number.value() {
-                        let header = client.get_header_by_number(i.into()).await.unwrap();
-                        headers.push(header);
-                    }
-
-                    submit_headers(headers).await;
-
-                    let raw = state
-                        .0
-                         .0
-                        .swap(Box::into_raw(Box::new(new_tip)), Ordering::AcqRel);
-
-                    unsafe {
-                        drop(Box::from_raw(raw));
-                    }
-                } else {
-                    interval.tick().await;
-                }
-            }
+            header_sync.run().await;
         });
     }
 

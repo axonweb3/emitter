@@ -15,7 +15,7 @@ reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 jsonrpc-core = "18.0"
-jsonrpsee = { version = "0.15", features = ["http-server", "macros"] }
+jsonrpsee = { version = "0.15", features = ["http-server", "macros", "ws-server"] }
 dashmap = { version = "5", features = ["serde"] }
 log = "0.4"
 env_logger = "0.10.0"

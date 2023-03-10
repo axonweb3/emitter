@@ -16,9 +16,109 @@ RUST_LOG=info ./target/release/emitter -s /tmp/emitter
 
 Run `emitter --help` for more information
 
+## Websocket Subscription
+
+**This module is mutually exclusive with http rpc**
+
+```bash
+RUST_LOG=info ./target/release/emitter --ws
+```
+
+### header_sync
+
+```js
+let socket = new WebSocket("ws://localhost:8120")
+
+socket.onmessage = function(event) {
+  console.log(`Data received from server: ${event.data}`);
+}
+
+socket.send(`{"id": 2, "jsonrpc": "2.0", "method": "emitter_subscription", "params": ["header_sync", "0x0"]}`)
+
+socket.send(`{"id": 2, "jsonrpc": "2.0", "method": "emitter_unsubscribe", "params": [0]}`)
+```
+
+#### Parameters
+
+u64, start block number
+
+#### Return
+
+list of [HeaderView](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-headerview)
+
+### cell_filter
+
+```js
+let socket = new WebSocket("ws://localhost:8120")
+
+socket.onmessage = function(event) {
+    console.log(`Data received from server: $ {
+        event.data
+    }`);
+}
+
+socket.send(` {
+    "id": 2,
+    "jsonrpc": "2.0",
+    "method": "emitter_subscription",
+    "params": ["cell_filter", {
+        "script": {
+            "code_hash": "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
+            "hash_type": "type",
+            "args": "0x5989ae415bb667931a99896e5fbbfad9ba53a223"
+        },
+        "script_type": "lock"
+    },
+    "0x0"]
+}`)
+
+socket.send(` {
+    "id": 2,
+    "jsonrpc": "2.0",
+    "method": "emitter_unsubscribe",
+    "params": [0]
+}`)
+```
+
+#### Parameters
+
+```
+search_key:
+    script - Script
+    script_type - enum, lock | type
+    script_search_mode - enum, prefix | exact | null - Script search mode, optional default is `prefix`, means search script with prefix
+    filter - filter cells by following conditions, all conditions are optional
+        script: if search script type is lock, filter cells by type script prefix, and vice versa
+        script_len_range: [u64; 2], filter cells by script len range, [inclusive, exclusive]
+        output_data_len_range: [u64; 2], filter cells by output data len range, [inclusive, exclusive]
+        output_capacity_range: [u64; 2], filter cells by output capacity range, [inclusive, exclusive]
+start: u64, start block number
+```
+
+#### Return
+
+```
+{
+    [   
+        {
+            "header": HeaderView, 
+            "inputs": [
+                OutPoint
+            ], 
+            "outputs": [
+                [
+                    OutPoint, CellInfo
+                ]
+            ]
+        }
+    ]
+}
+```
+- [HeaderView](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-headerview)
+- [OutPoint](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-outpoint)
+- [CellInfo](https://github.com/nervosnetwork/ckb/tree/develop/rpc#type-cellinfo)
 
 ## RPC
-
 
 ### register
 
