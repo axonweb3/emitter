@@ -5,15 +5,20 @@ use ethers::core::types::Bytes;
 use crate::emit_data::image_cell_abi;
 use crate::Submit;
 
-pub fn convert_cell(data: Submit) -> Vec<u8> {
-    image_cell_abi::UpdateCall {
-        // header:  convert_header(&data.header),
-        block_number: data.header.inner.number.into(),
-        inputs:       convert_inputs(&data.inputs),
-        outputs:      convert_outputs(&data.outputs),
-    }.encode()
+pub fn convert_blocks(data: Vec<Submit>) -> Vec<u8> {
+    let mut blocks = Vec::new();
+    for block in data {
+        blocks.push(image_cell_abi::BlockUpdate {
+            block_number: block.header.inner.number.into(),
+            tx_inputs:       convert_inputs(&block.inputs),
+            tx_outputs:      convert_outputs(&block.outputs),
+        });
+    }
+
+    image_cell_abi::UpdateCall { blocks }.encode()
 }
 
+// header:  convert_header(&data.header),
 // fn convert_header(header: &HeaderView) -> image_cell_abi::Header {
 //     image_cell_abi::Header {
 //         version:           header.inner.version.into(),

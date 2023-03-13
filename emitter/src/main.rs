@@ -21,7 +21,7 @@ use crate::{
     rpc_server::{EmitterRpc, EmitterServer},
 };
 use emit_data::eth_tx::{send_eth_tx, IMAGE_CELL_ADDRESS};
-use emit_data::tx_data::convert_cell;
+use emit_data::tx_data::convert_blocks;
 use global_state::GlobalState;
 use rpc_client::{IndexerTip, RpcClient};
 use rpc_server::{EmitterRpc, EmitterServer};
@@ -124,12 +124,9 @@ pub struct Submit {
 }
 
 async fn submit_cells(submits: Vec<Submit>) {
-    for sub in submits {
-        println!("{}", serde_json::to_string_pretty(&sub).unwrap());
-        send_eth_tx(convert_cell(sub), IMAGE_CELL_ADDRESS)
-            .await
-            .expect("failed to emite cells");
-    }
+    send_eth_tx(convert_blocks(submits), IMAGE_CELL_ADDRESS)
+        .await
+        .expect("failed to emite cells");
     println!("send eth tx done");
 }
 
