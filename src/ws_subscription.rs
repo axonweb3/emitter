@@ -1,8 +1,8 @@
 use ckb_jsonrpc_types::{BlockNumber, HeaderView};
 use jsonrpsee::{
     core::async_trait,
+    server::{RpcModule, SubscriptionSink},
     types::error::CallError,
-    ws_server::{RpcModule, SubscriptionSink},
 };
 
 use std::io;

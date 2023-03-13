@@ -137,18 +137,18 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "ckb-channel"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e718dfa7098b0bcce95c7fa573d96aad2f4c3ac886b6f35053f40c5e4894156"
+checksum = "920f26cc48cadcaf6f7bcc3960fde9f9f355633b6361da8ef31e1e1c00fc8858"
 dependencies = [
  "crossbeam-channel",
 ]
 
 [[package]]
 name = "ckb-error"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd512b729186e6fa991b588647646e230db7728f71ba16087af21bded12ceb09"
+checksum = "446a519d8a847d97f1c8ece739dc1748751a9a2179249c96c45cced0825a7aa5"
 dependencies = [
  "anyhow",
  "ckb-occupied-capacity",
@@ -158,9 +158,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-fixed-hash"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eba8f7006a63ad0945412012c89af6ad09d9b2b02962a869d0158a298fa8eca"
+checksum = "00cbbc455b23748b32e06d16628a03e30d56ffa057f17093fdf5b42d4fb6c879"
 dependencies = [
  "ckb-fixed-hash-core",
  "ckb-fixed-hash-macros",
@@ -168,9 +168,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-fixed-hash-core"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44b15b464d37d8deeb66046011b3e01e642103b27d4752db4e74740ded732c73"
+checksum = "cf4e644a4e026625b4be5a04cdf6c02043080e79feaf77d9cdbb2f0e6553f751"
 dependencies = [
  "faster-hex",
  "serde",
@@ -179,9 +179,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-fixed-hash-macros"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61e86358f6eb595a0e6a2a5ef96d54d4c56e0a4bf822934d7b1fe9904b7208e4"
+checksum = "e1cfc980ef88c217825172eb46df269f47890f5e78a38214416f13b3bd17a4b4"
 dependencies = [
  "ckb-fixed-hash-core",
  "proc-macro2",
@@ -191,9 +191,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-hash"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "038ad6840c4a89f4cd76b50621c4e6d82ca5f0d09fba707b1025016218d4a2d8"
+checksum = "53d9b683e89ae4ffdd5aaf4172eab00b6bbe7ea24e2abf77d3eb850ba36e8983"
 dependencies = [
  "blake2b-ref",
  "blake2b-rs",
@@ -201,9 +201,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-jsonrpc-types"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eca123e0b725e487cd49f202097c38c73c2a4d7e1c80d89549c492f058e84f29"
+checksum = "ac087657eaf964e729f40b3c929d3dac74a2cd8bb38d5e588756e2495711f810"
 dependencies = [
  "ckb-types",
  "faster-hex",
@@ -222,9 +222,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-occupied-capacity"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94f6c146d51b1b7f65511e6f16ef21b0d852aececc4ae87f78c3099c03e246a9"
+checksum = "2d2a1dd0d4ba5dafba1e30d437c1148b20f42edb76b6794323e05bda626754eb"
 dependencies = [
  "ckb-occupied-capacity-core",
  "ckb-occupied-capacity-macros",
@@ -232,18 +232,18 @@ dependencies = [
 
 [[package]]
 name = "ckb-occupied-capacity-core"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "507187824418c845b519c64521b34578570b5851d170ff0101bc477ed0cdee2b"
+checksum = "0ebba3d564098a84c83f4740e1dce48a5e2da759becdb47e3c7965f0808e6e92"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "ckb-occupied-capacity-macros"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17825cb1ec37c5ad2f2c6690aa4cbfeb9a6d2af02463a66b1fa013e4f9e762aa"
+checksum = "ce6321bba85cdf9724029d8c906851dd4a90906869b42f9100b16645a1261d4c"
 dependencies = [
  "ckb-occupied-capacity-core",
  "quote",
@@ -252,9 +252,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-rational"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa5edf5377138c9457015a450b1a263996d100a5b6e21566157f410e1a5b95b3"
+checksum = "a2519249f8d47fa758d3fb3cf3049327c69ce0f2acd79d61427482c8661d3dbd"
 dependencies = [
  "numext-fixed-uint",
  "serde",
@@ -262,9 +262,9 @@ dependencies = [
 
 [[package]]
 name = "ckb-types"
-version = "0.106.0"
+version = "0.108.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f9f918d7f04fed733c528ec98ba8bdee31a885bd082e6ff263ca21d58e01378"
+checksum = "9c22b3b1ca8f88a8f48e2f73321c0605281c9c6f1e1c4d651c6138265c22291e"
 dependencies = [
  "bit-vec",
  "bytes",
@@ -665,6 +665,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "heck"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
+
+[[package]]
 name = "hermit-abi"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -845,23 +851,22 @@ dependencies = [
 
 [[package]]
 name = "jsonrpsee"
-version = "0.15.1"
+version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bd0d559d5e679b1ab2f869b486a11182923863b1b3ee8b421763cdd707b783a"
+checksum = "7d291e3a5818a2384645fd9756362e6d89cf0541b0b916fa7702ea4a9833608e"
 dependencies = [
  "jsonrpsee-core",
- "jsonrpsee-http-server",
  "jsonrpsee-proc-macros",
+ "jsonrpsee-server",
  "jsonrpsee-types",
- "jsonrpsee-ws-server",
  "tracing",
 ]
 
 [[package]]
 name = "jsonrpsee-core"
-version = "0.15.1"
+version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3dc3e9cf2ba50b7b1d7d76a667619f82846caa39e8e8daa8a4962d74acaddca"
+checksum = "a4e70b4439a751a5de7dd5ed55eacff78ebf4ffe0fc009cb1ebb11417f5b536b"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -870,10 +875,8 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "globset",
- "http",
  "hyper",
  "jsonrpsee-types",
- "lazy_static",
  "parking_lot",
  "rand 0.8.5",
  "rustc-hash",
@@ -883,33 +886,15 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "unicase",
-]
-
-[[package]]
-name = "jsonrpsee-http-server"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03802f0373a38c2420c70b5144742d800b509e2937edc4afb116434f07120117"
-dependencies = [
- "futures-channel",
- "futures-util",
- "hyper",
- "jsonrpsee-core",
- "jsonrpsee-types",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "jsonrpsee-proc-macros"
-version = "0.15.1"
+version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd67957d4280217247588ac86614ead007b301ca2fa9f19c19f880a536f029e3"
+checksum = "baa6da1e4199c10d7b1d0a6e5e8bd8e55f351163b6f4b3cbb044672a69bd4c1c"
 dependencies = [
+ "heck",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
@@ -917,10 +902,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "jsonrpsee-types"
-version = "0.15.1"
+name = "jsonrpsee-server"
+version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e290bba767401b646812f608c099b922d8142603c9e73a50fb192d3ac86f4a0d"
+checksum = "1fb69dad85df79527c019659a992498d03f8495390496da2f07e6c24c2b356fc"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "http",
+ "hyper",
+ "jsonrpsee-core",
+ "jsonrpsee-types",
+ "serde",
+ "serde_json",
+ "soketto",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tower",
+ "tracing",
+]
+
+[[package]]
+name = "jsonrpsee-types"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bd522fe1ce3702fd94812965d7bb7a3364b1c9aba743944c5a00529aae80f8c"
 dependencies = [
  "anyhow",
  "beef",
@@ -928,26 +935,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tracing",
-]
-
-[[package]]
-name = "jsonrpsee-ws-server"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d488ba74fb369e5ab68926feb75a483458b88e768d44319f37e4ecad283c7325"
-dependencies = [
- "futures-channel",
- "futures-util",
- "http",
- "jsonrpsee-core",
- "jsonrpsee-types",
- "serde_json",
- "soketto",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "tracing-futures",
 ]
 
 [[package]]
@@ -1205,26 +1192,6 @@ name = "percent-encoding"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "478c572c3d73181ff3c2539045f6eb99e5491218eae919370993b890cdbdd98e"
-
-[[package]]
-name = "pin-project"
-version = "1.0.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad29a609b6bcd67fee905812e544992d216af9d755757c05ed2d0e15a74c6ecc"
-dependencies = [
- "pin-project-internal",
-]
-
-[[package]]
-name = "pin-project-internal"
-version = "1.0.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "069bdb1e05adc7a8990dce9cc75370895fbe4e3d58b9b73bf1aee56359344a55"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "pin-project-lite"
@@ -1584,6 +1551,7 @@ dependencies = [
  "base64 0.13.1",
  "bytes",
  "futures",
+ "http",
  "httparse",
  "log",
  "rand 0.8.5",
@@ -1750,6 +1718,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "tower"
+version = "0.4.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8fa9be0de6cf49e536ce1851f987bd21a43b771b09473c3549a6c853db37c1c"
+dependencies = [
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "tower-layer"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c20c8dbed6283a09604c3e69b4b7eeb54e298b8a600d4d5ecb5ad39de609f1d0"
+
+[[package]]
 name = "tower-service"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1762,6 +1747,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ce8c33a8d48bd45d624a6e523445fd21ec13d3653cd51f681abf67418f54eb8"
 dependencies = [
  "cfg-if",
+ "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
@@ -1788,16 +1774,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-futures"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
-dependencies = [
- "pin-project",
- "tracing",
-]
-
-[[package]]
 name = "try-lock"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1808,15 +1784,6 @@ name = "typenum"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "497961ef93d974e23eb6f433eb5fe1b7930b659f06d12dec6fc44a8f554c0bba"
-
-[[package]]
-name = "unicase"
-version = "2.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50f37be617794602aabbeee0be4f259dc1778fabe05e2d67ee8f79326d5cb4f6"
-dependencies = [
- "version_check",
-]
 
 [[package]]
 name = "unicode-bidi"
