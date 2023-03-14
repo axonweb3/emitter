@@ -1,5 +1,5 @@
 use ckb_jsonrpc_types::{CellInfo, HeaderView, OutPoint};
-use jsonrpsee::{core::async_trait, http_server::HttpServerBuilder, ws_server::WsServerBuilder};
+use jsonrpsee::{core::async_trait, server::ServerBuilder};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::sync::{
@@ -58,14 +58,15 @@ async fn main() {
     let listen_url = matches.get_one::<String>("listen_uri").unwrap();
     if matches.get_flag("ws") {
         let rpc = ws_subscription::ws_subscription_module(client).await;
-        let handle = WsServerBuilder::new()
+        let handle = ServerBuilder::new()
+            .ws_only()
             .build(listen_url)
             .await
             .unwrap()
             .start(rpc)
             .unwrap();
         log::info!("websocket listen on {}", listen_url);
-        handle.await;
+        handle.stopped().await;
     } else {
         let genesis = client.get_header_by_number(0.into()).await.unwrap();
 
@@ -89,7 +90,8 @@ async fn main() {
         }
         .into_rpc();
 
-        let handle = HttpServerBuilder::new()
+        let handle = ServerBuilder::new()
+            .http_only()
             .build(listen_url)
             .await
             .unwrap()
@@ -97,7 +99,7 @@ async fn main() {
             .unwrap();
 
         log::info!("listen on {}", listen_url);
-        handle.await;
+        handle.stopped().await;
     }
 }
 
