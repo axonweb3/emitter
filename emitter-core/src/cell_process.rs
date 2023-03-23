@@ -16,6 +16,7 @@ pub struct CellProcess<T, P, R> {
     process_fn: P,
     stop: bool,
 }
+
 impl<T, P, R> CellProcess<T, P, R>
 where
     T: TipState,

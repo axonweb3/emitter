@@ -57,6 +57,13 @@ async fn main() {
         .required(true)
         .action(clap::ArgAction::Set),
     ).arg(
+        clap::Arg::new("axon_uri")
+        .long("i")
+        .default_value("127.0.0.1:8080")
+        .help("The Axon listening address, default 127.0.0.1:8080")
+        .action(clap::ArgAction::Set)
+    )
+    .arg(
         clap::Arg::new("ws")
         .long("ws")
         .conflicts_with("store_path")
@@ -86,6 +93,7 @@ async fn main() {
         let mut global = GlobalState::new(
             matches.get_one::<String>("store_path").unwrap().into(),
             genesis,
+            matches.get_one::<String>("axon_uri").unwrap().into(),
         );
 
         let state = global.state.clone();
@@ -100,6 +108,7 @@ async fn main() {
             state,
             cell_handles,
             client,
+            axon_url: matches.get_one::<String>("axon_uri").unwrap().into(),
         }
         .into_rpc();
 

@@ -1,4 +1,4 @@
-use ckb_jsonrpc_types::{CellInfo, HeaderView, OutPoint, Script, ScriptHashType};
+use ckb_jsonrpc_types::{CellInfo, OutPoint, Script, ScriptHashType};
 use ethers::abi::AbiEncode;
 use ethers::core::types::Bytes;
 
@@ -10,8 +10,8 @@ pub fn convert_blocks(data: Vec<Submit>) -> Vec<u8> {
     for block in data {
         blocks.push(image_cell_abi::BlockUpdate {
             block_number: block.header.inner.number.into(),
-            tx_inputs:       convert_inputs(&block.inputs),
-            tx_outputs:      convert_outputs(&block.outputs),
+            tx_inputs: convert_inputs(&block.inputs),
+            tx_outputs: convert_outputs(&block.outputs),
         });
     }
 
@@ -53,7 +53,7 @@ fn convert_outputs(outputs: &Vec<(OutPoint, CellInfo)>) -> Vec<image_cell_abi::C
             vec![]
         };
 
-        let data =  if let Some(ref data) = cell.1.data {
+        let data = if let Some(ref data) = cell.1.data {
             data.content.to_owned().into_bytes().into()
         } else {
             Bytes::default()
@@ -61,9 +61,9 @@ fn convert_outputs(outputs: &Vec<(OutPoint, CellInfo)>) -> Vec<image_cell_abi::C
 
         res.push(image_cell_abi::CellInfo {
             out_point: convert_outpoint(&cell.0),
-            output:    image_cell_abi::CellOutput {
+            output: image_cell_abi::CellOutput {
                 capacity: cell.1.output.capacity.into(),
-                lock:     convert_script(&cell.1.output.lock),
+                lock: convert_script(&cell.1.output.lock),
                 type_,
             },
             data,
@@ -75,7 +75,7 @@ fn convert_outputs(outputs: &Vec<(OutPoint, CellInfo)>) -> Vec<image_cell_abi::C
 fn convert_outpoint(out_point: &OutPoint) -> image_cell_abi::OutPoint {
     image_cell_abi::OutPoint {
         tx_hash: out_point.tx_hash.to_owned().into(),
-        index:   out_point.index.into(),
+        index: out_point.index.into(),
     }
 }
 
@@ -87,7 +87,7 @@ fn convert_script(script: &Script) -> image_cell_abi::Script {
     };
 
     image_cell_abi::Script {
-        args:      script.args.to_owned().into_bytes().into(),
+        args: script.args.to_owned().into_bytes().into(),
         code_hash: script.code_hash.to_owned().into(),
         hash_type,
     }

@@ -222,8 +222,8 @@ pub mod image_cell_contract {
     )]
     pub struct CellInfo {
         pub out_point: OutPoint,
-        pub output:    CellOutput,
-        pub data:      ::ethers::core::types::Bytes,
+        pub output: CellOutput,
+        pub data: ::ethers::core::types::Bytes,
     }
     /// `CellOutput(uint64,(bytes32,uint8,bytes),(bytes32,uint8,bytes)[])`
     #[derive(
@@ -238,8 +238,8 @@ pub mod image_cell_contract {
     )]
     pub struct CellOutput {
         pub capacity: u64,
-        pub lock:     Script,
-        pub type_:    ::std::vec::Vec<Script>,
+        pub lock: Script,
+        pub type_: ::std::vec::Vec<Script>,
     }
     /// `OutPoint(bytes32,uint32)`
     #[derive(
@@ -254,7 +254,7 @@ pub mod image_cell_contract {
     )]
     pub struct OutPoint {
         pub tx_hash: [u8; 32],
-        pub index:   u32,
+        pub index: u32,
     }
     /// `Script(bytes32,uint8,bytes)`
     #[derive(
@@ -270,7 +270,7 @@ pub mod image_cell_contract {
     pub struct Script {
         pub code_hash: [u8; 32],
         pub hash_type: u8,
-        pub args:      ::ethers::core::types::Bytes,
+        pub args: ::ethers::core::types::Bytes,
     }
     /// `BlockRollBlack((bytes32,uint32)[],(bytes32,uint32)[])`
     #[derive(
@@ -284,7 +284,7 @@ pub mod image_cell_contract {
         Hash,
     )]
     pub struct BlockRollBlack {
-        pub tx_inputs:  ::std::vec::Vec<OutPoint>,
+        pub tx_inputs: ::std::vec::Vec<OutPoint>,
         pub tx_outputs: ::std::vec::Vec<OutPoint>,
     }
     /// `BlockUpdate(uint64,(bytes32,uint32)[],((bytes32,uint32),(uint64,
@@ -301,7 +301,7 @@ pub mod image_cell_contract {
     )]
     pub struct BlockUpdate {
         pub block_number: u64,
-        pub tx_inputs:    ::std::vec::Vec<OutPoint>,
-        pub tx_outputs:   ::std::vec::Vec<CellInfo>,
+        pub tx_inputs: ::std::vec::Vec<OutPoint>,
+        pub tx_outputs: ::std::vec::Vec<CellInfo>,
     }
 }

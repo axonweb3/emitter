@@ -63,6 +63,7 @@ pub(crate) struct GlobalState {
     pub state: State,
     path: PathBuf,
     cell_handles: Arc<dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>>,
+    axon_url: String,
 }
 
 impl Drop for GlobalState {
@@ -72,7 +73,7 @@ impl Drop for GlobalState {
 }
 
 impl GlobalState {
-    pub fn new(path: PathBuf, default_header: HeaderView) -> Self {
+    pub fn new(path: PathBuf, default_header: HeaderView, axon_url: String) -> Self {
         let default_scan_tip = {
             let tip = IndexerTip {
                 block_hash: default_header.hash,
@@ -88,6 +89,7 @@ impl GlobalState {
             cell_handles: Arc::new(dashmap::DashMap::with_capacity(state.cell_states.len())),
             state,
             path,
+            axon_url,
         }
     }
 
@@ -126,7 +128,9 @@ impl GlobalState {
                     kv.key().clone(),
                     kv.value().clone(),
                     client.clone(),
-                    RpcSubmit,
+                    RpcSubmit {
+                        axon_url: self.axon_url.clone(),
+                    },
                 );
 
                 let handle = tokio::spawn(async move {
@@ -141,7 +145,14 @@ impl GlobalState {
     pub fn spawn_header_sync(&self, client: RpcClient) {
         let state = self.state.header_state.clone();
 
-        let mut header_sync = HeaderSyncProcess::new(state, client, RpcSubmit);
+        let mut header_sync = HeaderSyncProcess::new(
+            state,
+            client,
+            RpcSubmit {
+                axon_url: self.axon_url.clone(),
+            },
+        );
+
         tokio::spawn(async move {
             header_sync.run().await;
         });
