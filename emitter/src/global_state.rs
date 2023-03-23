@@ -1,4 +1,10 @@
 use ckb_jsonrpc_types::HeaderView;
+use emitter_core::{
+    cell_process::CellProcess,
+    header_sync::HeaderSyncProcess,
+    rpc_client::RpcClient,
+    types::{IndexerTip, RpcSearchKey},
+};
 use serde::{ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     fs::{copy, create_dir_all, remove_file, rename, File, OpenOptions},
@@ -7,13 +13,7 @@ use std::{
     sync::{atomic::AtomicPtr, Arc},
 };
 
-use crate::{
-    cell_process::{CellProcess, RpcSubmit},
-    header_sync::HeaderSyncProcess,
-    rpc_client::{IndexerTip, RpcClient},
-    rpc_server::RpcSearchKey,
-    ScanTip, ScanTipInner,
-};
+use crate::{RpcSubmit, ScanTip, ScanTipInner};
 
 #[derive(Clone)]
 pub struct State {
@@ -122,13 +122,12 @@ impl GlobalState {
     ) -> Arc<dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>> {
         if !self.state.cell_states.is_empty() {
             for kv in self.state.cell_states.iter() {
-                let mut cell_process = CellProcess {
-                    key: kv.key().clone(),
-                    scan_tip: kv.value().clone(),
-                    client: client.clone(),
-                    process_fn: RpcSubmit,
-                    stop: false,
-                };
+                let mut cell_process = CellProcess::new(
+                    kv.key().clone(),
+                    kv.value().clone(),
+                    client.clone(),
+                    RpcSubmit,
+                );
 
                 let handle = tokio::spawn(async move {
                     cell_process.run().await;
@@ -142,12 +141,7 @@ impl GlobalState {
     pub fn spawn_header_sync(&self, client: RpcClient) {
         let state = self.state.header_state.clone();
 
-        let mut header_sync = HeaderSyncProcess {
-            scan_tip: state,
-            client,
-            process_fn: RpcSubmit,
-            stop: false,
-        };
+        let mut header_sync = HeaderSyncProcess::new(state, client, RpcSubmit);
         tokio::spawn(async move {
             header_sync.run().await;
         });

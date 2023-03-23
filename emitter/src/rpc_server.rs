@@ -1,68 +1,20 @@
-use ckb_jsonrpc_types::{BlockNumber, Script, Uint64};
+use ckb_jsonrpc_types::BlockNumber;
+use emitter_core::{
+    cell_process::CellProcess,
+    rpc_client::RpcClient,
+    types::{IndexerTip, RpcSearchKey},
+};
 use jsonrpsee::{
     core::{async_trait, Error},
     proc_macros::rpc,
 };
-use serde::{Deserialize, Serialize};
 
 use std::sync::{
     atomic::{AtomicPtr, Ordering},
     Arc,
 };
 
-use crate::{
-    cell_process::{CellProcess, RpcSubmit},
-    global_state::State,
-    rpc_client::{
-        IndexerScriptSearchMode, IndexerTip, RpcClient, ScriptType, SearchKey, SearchKeyFilter,
-    },
-    ScanTip, ScanTipInner,
-};
-
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)]
-pub struct RpcSearchKey {
-    pub script: Script,
-    pub script_type: ScriptType,
-    pub script_search_mode: Option<IndexerScriptSearchMode>,
-    pub filter: Option<RpcSearchKeyFilter>,
-}
-
-impl RpcSearchKey {
-    pub fn into_key(self, block_range: Option<[Uint64; 2]>) -> SearchKey {
-        SearchKey {
-            script: self.script,
-            script_type: self.script_type,
-            filter: if self.filter.is_some() {
-                self.filter.map(|f| f.into_filter(block_range))
-            } else {
-                Some(RpcSearchKeyFilter::default().into_filter(block_range))
-            },
-            script_search_mode: self.script_search_mode,
-            with_data: None,
-            group_by_transaction: Some(true),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Hash, PartialEq, Eq)]
-pub struct RpcSearchKeyFilter {
-    pub script: Option<Script>,
-    pub script_len_range: Option<[Uint64; 2]>,
-    pub output_data_len_range: Option<[Uint64; 2]>,
-    pub output_capacity_range: Option<[Uint64; 2]>,
-}
-
-impl RpcSearchKeyFilter {
-    fn into_filter(self, block_range: Option<[Uint64; 2]>) -> SearchKeyFilter {
-        SearchKeyFilter {
-            script: self.script,
-            script_len_range: self.script_len_range,
-            output_data_len_range: self.output_data_len_range,
-            output_capacity_range: self.output_capacity_range,
-            block_range,
-        }
-    }
-}
+use crate::{global_state::State, RpcSubmit, ScanTip, ScanTipInner};
 
 #[rpc(server)]
 pub trait Emitter {
@@ -118,13 +70,8 @@ impl EmitterServer for EmitterRpc {
                 .cell_states
                 .insert(search_key.clone(), scan_tip.clone());
 
-            let mut cell_process = CellProcess {
-                key: search_key.clone(),
-                client: self.client.clone(),
-                scan_tip,
-                process_fn: RpcSubmit,
-                stop: false,
-            };
+            let mut cell_process =
+                CellProcess::new(search_key.clone(), scan_tip, self.client.clone(), RpcSubmit);
 
             let handle = tokio::spawn(async move {
                 cell_process.run().await;
@@ -153,7 +100,7 @@ impl EmitterServer for EmitterRpc {
 
     async fn header_sync_start(&self, number: BlockNumber) -> Result<bool, Error> {
         let current =
-            unsafe { (&*self.state.header_state.0 .0.load(Ordering::Acquire)).block_number };
+            unsafe { (*self.state.header_state.0 .0.load(Ordering::Acquire)).block_number };
         if number < current {
             Ok(false)
         } else {

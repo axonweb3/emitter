@@ -1,88 +1,59 @@
-use ckb_jsonrpc_types::{CellData, CellInfo, HeaderView, OutPoint};
-use ckb_types::{packed, prelude::Unpack};
-use jsonrpsee::core::async_trait;
-use std::{collections::HashMap, sync::atomic::Ordering};
-
 use crate::{
-    rpc_client::{CellType, IndexerTip, Order, RpcClient, Tx},
-    rpc_server::RpcSearchKey,
-    submit_cells, submit_headers, ScanTip, Submit, SubmitProcess, TipState,
+    types::{CellType, IndexerTip, Order, RpcSearchKey, Tx},
+    Rpc, Submit, SubmitProcess, TipState,
 };
 
-impl TipState for ScanTip {
-    fn load(&self) -> &IndexerTip {
-        unsafe { &*self.0 .0.load(Ordering::Acquire) }
-    }
+use ckb_jsonrpc_types::{CellData, CellInfo, OutPoint};
+use ckb_types::{packed, prelude::Unpack};
+use std::collections::HashMap;
+// H256 + U32
+const OUTPOINT_SIZE: usize = 32 + 4;
 
-    fn update(&mut self, current: IndexerTip) {
-        let raw = self
-            .0
-             .0
-            .swap(Box::into_raw(Box::new(current)), Ordering::AcqRel);
-
-        unsafe {
-            drop(Box::from_raw(raw));
-        }
-    }
+pub struct CellProcess<T, P, R> {
+    key: RpcSearchKey,
+    scan_tip: T,
+    client: R,
+    process_fn: P,
+    stop: bool,
 }
-
-pub(crate) struct RpcSubmit;
-
-#[async_trait]
-impl SubmitProcess for RpcSubmit {
-    fn is_closed(&self) -> bool {
-        false
-    }
-
-    async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool {
-        submit_cells(cells).await;
-        true
-    }
-
-    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool {
-        submit_headers(headers).await;
-        true
-    }
-}
-pub(crate) struct CellProcess<T, P> {
-    pub key: RpcSearchKey,
-    pub scan_tip: T,
-    pub client: RpcClient,
-    pub process_fn: P,
-    pub stop: bool,
-}
-
-impl<T, P> CellProcess<T, P>
+impl<T, P, R> CellProcess<T, P, R>
 where
     T: TipState,
     P: SubmitProcess,
+    R: Rpc,
 {
+    pub fn new(key: RpcSearchKey, tip: T, client: R, process: P) -> Self {
+        Self {
+            key,
+            scan_tip: tip,
+            client,
+            process_fn: process,
+            stop: false,
+        }
+    }
+
     pub async fn run(&mut self) {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
-            interval.tick().await;
             if self.stop || self.process_fn.is_closed() {
                 break;
             }
-            self.scan().await;
+            self.scan(&mut interval).await;
         }
     }
 
-    async fn scan(&mut self) {
-        let indexer_tip = self.client.get_indexer_tip().await.unwrap();
+    #[allow(unused_assignments)]
+    async fn scan(&mut self, interval: &mut tokio::time::Interval) {
+        let indexer_tip = rpc_get!(self.client.get_indexer_tip());
         let old_tip = self.scan_tip.load().clone();
 
         if indexer_tip.block_number.value().saturating_sub(24) > old_tip.block_number.value() {
             // use tip - 24 as new tip
             let new_tip = {
-                let new = self
-                    .client
-                    .get_header_by_number(
-                        indexer_tip.block_number.value().saturating_sub(24).into(),
-                    )
-                    .await
-                    .unwrap();
+                let new = rpc_get!(self.client.get_header_by_number(
+                    indexer_tip.block_number.value().saturating_sub(24).into(),
+                ));
                 IndexerTip {
                     block_hash: new.hash,
                     block_number: new.inner.number,
@@ -95,32 +66,25 @@ where
                 .into_key(Some([old_tip.block_number, new_tip.block_number]));
 
             let mut cursor = None;
-
             let mut submits = HashMap::new();
-
             loop {
-                let txs = self
-                    .client
-                    .get_transactions(search_key.clone(), Order::Asc, 128.into(), cursor)
-                    .await
-                    .unwrap();
+                let txs = rpc_get!(self.client.get_transactions(
+                    search_key.clone(),
+                    Order::Asc,
+                    32.into(),
+                    cursor.clone()
+                ));
 
                 let tx_len = txs.objects.len();
-
+                let mut total_size = 0;
                 for tx in txs.objects {
                     match tx {
                         Tx::Grouped(tx_with_cells) => {
-                            let tx = self
-                                .client
-                                .get_transaction(&tx_with_cells.tx_hash)
-                                .await
-                                .unwrap()
+                            let tx = rpc_get!(self.client.get_transaction(&tx_with_cells.tx_hash))
                                 .unwrap();
-                            let header = self
+                            let header = rpc_get!(self
                                 .client
-                                .get_header_by_number(tx_with_cells.block_number)
-                                .await
-                                .unwrap();
+                                .get_header_by_number(tx_with_cells.block_number));
                             let submit_entry =
                                 submits.entry(header.hash.clone()).or_insert(Submit {
                                     header,
@@ -129,17 +93,28 @@ where
                                 });
                             for (ty, idx) in tx_with_cells.cells {
                                 let index = idx.value() as usize;
+                                // header size
+                                total_size += 8;
                                 match ty {
                                     CellType::Input => {
+                                        total_size += OUTPOINT_SIZE;
                                         let outpoint =
                                             tx.inner.inputs[index].previous_output.clone();
                                         submit_entry.inputs.push(outpoint)
                                     }
                                     CellType::Output => {
+                                        total_size += OUTPOINT_SIZE;
                                         let cell_info = {
                                             let data = tx.inner.outputs_data.get(index).cloned();
+                                            total_size += data
+                                                .as_ref()
+                                                .map(|a| a.as_bytes().len())
+                                                .unwrap_or_default();
+                                            let output = tx.inner.outputs[index].clone();
+                                            total_size += packed::CellOutput::from(output.clone())
+                                                .total_size();
                                             CellInfo {
-                                                output: tx.inner.outputs[index].clone(),
+                                                output,
                                                 data: data.map(|d| CellData {
                                                     hash: packed::CellOutput::calc_data_hash(
                                                         d.as_bytes(),
@@ -160,22 +135,38 @@ where
                         }
                         Tx::Ungrouped(_) => unreachable!(),
                     }
+
+                    if total_size > 1024 * 1024 {
+                        let mut cells = submits.drain().map(|(_, v)| v).collect::<Vec<Submit>>();
+                        cells.sort_unstable_by_key(|v| v.header.inner.number.value());
+
+                        if !self.process_fn.submit_cells(cells).await {
+                            self.stop = true;
+                            return;
+                        }
+                        total_size = 0;
+                    }
+                }
+                total_size = 0;
+                if !submits.is_empty() {
+                    let mut cells = submits.drain().map(|(_, v)| v).collect::<Vec<Submit>>();
+                    cells.sort_unstable_by_key(|v| v.header.inner.number.value());
+
+                    if !self.process_fn.submit_cells(cells).await {
+                        self.stop = true;
+                        return;
+                    }
                 }
 
-                if tx_len == 128 {
+                if tx_len == 32 {
                     cursor = Some(txs.last_cursor);
                 } else {
                     break;
                 }
             }
-
-            let mut cells = submits.into_iter().map(|(_, v)| v).collect::<Vec<Submit>>();
-            cells.sort_unstable_by_key(|v| v.header.inner.number.value());
-
-            if !self.process_fn.submit_cells(cells).await {
-                self.stop = true
-            }
             self.scan_tip.update(new_tip);
+        } else {
+            interval.tick().await;
         }
     }
 }

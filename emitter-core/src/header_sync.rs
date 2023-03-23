@@ -1,21 +1,28 @@
-use crate::{
-    rpc_client::{IndexerTip, RpcClient},
-    SubmitProcess, TipState,
-};
+use crate::{types::IndexerTip, Rpc, SubmitProcess, TipState};
 
-pub(crate) struct HeaderSyncProcess<T, P> {
-    pub scan_tip: T,
-    pub client: RpcClient,
-    pub process_fn: P,
-    pub stop: bool,
+pub struct HeaderSyncProcess<T, P, R> {
+    scan_tip: T,
+    client: R,
+    process_fn: P,
+    stop: bool,
 }
 
-impl<T, P> HeaderSyncProcess<T, P>
+impl<T, P, R> HeaderSyncProcess<T, P, R>
 where
     T: TipState,
     P: SubmitProcess,
+    R: Rpc,
 {
-    pub(crate) async fn run(&mut self) {
+    pub fn new(tip: T, client: R, process: P) -> Self {
+        Self {
+            scan_tip: tip,
+            client,
+            process_fn: process,
+            stop: false,
+        }
+    }
+
+    pub async fn run(&mut self) {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
@@ -25,25 +32,20 @@ where
             self.scan(&mut interval).await;
         }
     }
-
     async fn scan(&mut self, interval: &mut tokio::time::Interval) {
-        let indexer_tip = self.client.get_indexer_tip().await.unwrap();
+        let indexer_tip = rpc_get!(self.client.get_indexer_tip());
         let old_tip = self.scan_tip.load().clone();
 
         if indexer_tip.block_number.value().saturating_sub(24) > old_tip.block_number.value() {
             let new_tip = {
-                let new = self
-                    .client
-                    .get_header_by_number(
-                        // 256 headers as a step
-                        std::cmp::min(
-                            indexer_tip.block_number.value().saturating_sub(24),
-                            old_tip.block_number.value() + 256,
-                        )
-                        .into(),
+                let new = rpc_get!(self.client.get_header_by_number(
+                    // 256 headers as a step
+                    std::cmp::min(
+                        indexer_tip.block_number.value().saturating_sub(24),
+                        old_tip.block_number.value() + 256,
                     )
-                    .await
-                    .unwrap();
+                    .into(),
+                ));
                 IndexerTip {
                     block_hash: new.hash,
                     block_number: new.inner.number,
@@ -55,7 +57,7 @@ where
             );
 
             for i in old_tip.block_number.value()..new_tip.block_number.value() {
-                let header = self.client.get_header_by_number(i.into()).await.unwrap();
+                let header = rpc_get!(self.client.get_header_by_number(i.into()));
                 headers.push(header);
             }
 
