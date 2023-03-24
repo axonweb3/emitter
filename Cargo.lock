@@ -393,15 +393,29 @@ dependencies = [
 name = "emitter"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "ckb-jsonrpc-types",
  "ckb-types",
  "clap",
  "dashmap",
+ "emitter-core",
  "env_logger",
  "futures",
- "jsonrpc-core",
  "jsonrpsee",
  "log",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "emitter-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "ckb-jsonrpc-types",
+ "ckb-types",
+ "jsonrpc-core",
  "reqwest",
  "serde",
  "serde_json",

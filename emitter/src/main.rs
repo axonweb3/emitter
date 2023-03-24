@@ -1,5 +1,11 @@
-use ckb_jsonrpc_types::{CellInfo, HeaderView, OutPoint};
-use jsonrpsee::{core::async_trait, server::ServerBuilder};
+mod global_state;
+mod rpc_server;
+mod ws_subscription;
+
+use async_trait::async_trait;
+use ckb_jsonrpc_types::HeaderView;
+use emitter_core::{rpc_client::RpcClient, types::IndexerTip, Submit, SubmitProcess, TipState};
+use jsonrpsee::server::ServerBuilder;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::sync::{
@@ -7,16 +13,10 @@ use std::sync::{
     Arc,
 };
 
-use global_state::GlobalState;
-use rpc_client::{IndexerTip, RpcClient};
-use rpc_server::{EmitterRpc, EmitterServer};
-
-mod cell_process;
-mod global_state;
-mod header_sync;
-mod rpc_client;
-mod rpc_server;
-mod ws_subscription;
+use crate::{
+    global_state::GlobalState,
+    rpc_server::{EmitterRpc, EmitterServer},
+};
 
 #[tokio::main]
 async fn main() {
@@ -103,38 +103,6 @@ async fn main() {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Submit {
-    header: HeaderView,
-    inputs: Vec<OutPoint>,
-    outputs: Vec<(OutPoint, CellInfo)>,
-}
-
-async fn submit_cells(submits: Vec<Submit>) {
-    for sub in submits {
-        println!("{}", serde_json::to_string_pretty(&sub).unwrap())
-    }
-}
-
-async fn submit_headers(headers: Vec<HeaderView>) {
-    for header in headers {
-        println!("{}", serde_json::to_string_pretty(&header).unwrap())
-    }
-}
-
-#[async_trait]
-pub(crate) trait SubmitProcess {
-    fn is_closed(&self) -> bool;
-    // if false return, it means this cell process should be shutdown
-    async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool;
-    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool;
-}
-
-pub(crate) trait TipState {
-    fn load(&self) -> &IndexerTip;
-    fn update(&mut self, current: IndexerTip);
-}
-
 struct ScanTipInner(AtomicPtr<IndexerTip>);
 
 pub struct ScanTip(Arc<ScanTipInner>);
@@ -148,6 +116,23 @@ impl Drop for ScanTipInner {
 impl Clone for ScanTip {
     fn clone(&self) -> Self {
         ScanTip(self.0.clone())
+    }
+}
+
+impl TipState for ScanTip {
+    fn load(&self) -> &IndexerTip {
+        unsafe { &*self.0 .0.load(Ordering::Acquire) }
+    }
+
+    fn update(&mut self, current: IndexerTip) {
+        let raw = self
+            .0
+             .0
+            .swap(Box::into_raw(Box::new(current)), Ordering::AcqRel);
+
+        unsafe {
+            drop(Box::from_raw(raw));
+        }
     }
 }
 
@@ -172,5 +157,36 @@ impl<'a> Deserialize<'a> for ScanTip {
         Ok(ScanTip(Arc::new(ScanTipInner(AtomicPtr::new(
             Box::into_raw(Box::new(inner)),
         )))))
+    }
+}
+
+async fn submit_cells(submits: Vec<Submit>) {
+    for sub in submits {
+        println!("{}", serde_json::to_string_pretty(&sub).unwrap())
+    }
+}
+
+async fn submit_headers(headers: Vec<HeaderView>) {
+    for header in headers {
+        println!("{}", serde_json::to_string_pretty(&header).unwrap())
+    }
+}
+
+pub(crate) struct RpcSubmit;
+
+#[async_trait]
+impl SubmitProcess for RpcSubmit {
+    fn is_closed(&self) -> bool {
+        false
+    }
+
+    async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool {
+        submit_cells(cells).await;
+        true
+    }
+
+    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool {
+        submit_headers(headers).await;
+        true
     }
 }

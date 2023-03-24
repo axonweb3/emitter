@@ -1,4 +1,11 @@
 use ckb_jsonrpc_types::{BlockNumber, HeaderView};
+use emitter_core::{
+    cell_process::CellProcess,
+    header_sync::HeaderSyncProcess,
+    rpc_client::RpcClient,
+    types::{IndexerTip, RpcSearchKey},
+    Submit, SubmitProcess,
+};
 use jsonrpsee::{
     core::async_trait,
     server::{RpcModule, SubscriptionSink},
@@ -7,35 +14,19 @@ use jsonrpsee::{
 
 use std::io;
 
-use crate::{
-    cell_process::CellProcess,
-    header_sync::HeaderSyncProcess,
-    rpc_client::{IndexerTip, RpcClient},
-    rpc_server::RpcSearchKey,
-    Submit, SubmitProcess, TipState,
-};
-
-impl TipState for IndexerTip {
-    fn load(&self) -> &IndexerTip {
-        &self
-    }
-
-    fn update(&mut self, current: IndexerTip) {
-        *self = current
-    }
-}
+struct WsSubmit(SubscriptionSink);
 
 #[async_trait]
-impl SubmitProcess for SubscriptionSink {
+impl SubmitProcess for WsSubmit {
     fn is_closed(&self) -> bool {
-        self.is_closed()
+        self.0.is_closed()
     }
 
     async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool {
         if cells.is_empty() {
             return true;
         }
-        match self.send(&cells) {
+        match self.0.send(&cells) {
             Ok(r) => r,
             Err(e) => {
                 log::error!("submit cells error: {}", e);
@@ -48,7 +39,7 @@ impl SubmitProcess for SubscriptionSink {
         if headers.is_empty() {
             return true;
         }
-        match self.send(&headers) {
+        match self.0.send(&headers) {
             Ok(r) => r,
             Err(e) => {
                 log::error!("submit headers error: {}", e);
@@ -79,13 +70,8 @@ pub async fn ws_subscription_module(client: RpcClient) -> RpcModule<RpcClient> {
                     tokio::spawn(async move {
                         match cell_process(start, client.clone()).await {
                             Ok(tip) => {
-                                let mut cell_process = CellProcess {
-                                    key,
-                                    client,
-                                    scan_tip: tip,
-                                    process_fn: sink,
-                                    stop: false,
-                                };
+                                let mut cell_process =
+                                    CellProcess::new(key, tip, client, WsSubmit(sink));
 
                                 tokio::spawn(async move {
                                     cell_process.run().await;
@@ -108,12 +94,8 @@ pub async fn ws_subscription_module(client: RpcClient) -> RpcModule<RpcClient> {
                                 block_number: header.inner.number,
                             }
                         };
-                        let mut header_sync = HeaderSyncProcess {
-                            scan_tip: start_tip,
-                            client,
-                            process_fn: sink,
-                            stop: false,
-                        };
+                        let mut header_sync =
+                            HeaderSyncProcess::new(start_tip, client, WsSubmit(sink));
                         header_sync.run().await;
                     });
                 }
