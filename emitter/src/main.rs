@@ -135,17 +135,20 @@ pub struct Submit {
     outputs: Vec<(OutPoint, CellInfo)>,
 }
 
-async fn submit_cells(submits: Vec<Submit>) {
-    send_eth_tx(convert_blocks(submits), IMAGE_CELL_ADDRESS)
-        .await
-        .expect("failed to emite cells");
-    println!("send eth tx done");
+async fn submit_cells(axon_url: &str, submits: Vec<Submit>) {
+    // for sub in submits.iter() {
+    //     println!("{}", serde_json::to_string_pretty(sub).unwrap());
+    // }
+
+    if let Err(e) = send_eth_tx(axon_url, convert_blocks(submits), IMAGE_CELL_ADDRESS).await {
+        println!("emitter submit tx error: {e}")
+    };
 }
 
-async fn submit_headers(headers: Vec<HeaderView>) {
-    for header in headers {
-        println!("{}", serde_json::to_string_pretty(&header).unwrap())
-    }
+async fn submit_headers(_headers: Vec<HeaderView>) {
+    // for header in headers {
+    //     println!("{}", serde_json::to_string_pretty(&header).unwrap())
+    // }
 }
 
 #[async_trait]
