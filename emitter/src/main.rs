@@ -1,3 +1,4 @@
+mod emit_data;
 mod global_state;
 mod rpc_server;
 mod ws_subscription;
@@ -17,6 +18,8 @@ use std::sync::{
 };
 
 use crate::{
+    emit_data::eth_tx::{send_eth_tx, IMAGE_CELL_ADDRESS},
+    emit_data::tx_data::convert_blocks,
     global_state::GlobalState,
     rpc_server::{EmitterRpc, EmitterServer},
 };
@@ -59,8 +62,8 @@ async fn main() {
     ).arg(
         clap::Arg::new("axon_uri")
         .long("i")
-        .default_value("127.0.0.1:8080")
-        .help("The Axon listening address, default 127.0.0.1:8080")
+        .default_value("http://127.0.0.1:8080")
+        .help("The Axon listening address, default http://127.0.0.1:8080")
         .action(clap::ArgAction::Set)
     )
     .arg(
@@ -227,7 +230,9 @@ async fn submit_headers(headers: Vec<HeaderViewWithExtension>) {
     }
 }
 
-pub(crate) struct RpcSubmit;
+pub(crate) struct RpcSubmit {
+    pub axon_url: String,
+}
 
 #[async_trait]
 impl SubmitProcess for RpcSubmit {
@@ -236,7 +241,7 @@ impl SubmitProcess for RpcSubmit {
     }
 
     async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool {
-        submit_cells(cells).await;
+        submit_cells(&self.axon_url, cells).await;
         true
     }
 
