@@ -57,8 +57,8 @@ where
             );
 
             for i in old_tip.block_number.value()..new_tip.block_number.value() {
-                let header = rpc_get!(self.client.get_header_by_number(i.into()));
-                headers.push(header);
+                let header = rpc_get!(self.client.get_block_by_number(i.into()));
+                headers.push(header.into());
             }
 
             if !self.process_fn.submit_headers(headers).await {

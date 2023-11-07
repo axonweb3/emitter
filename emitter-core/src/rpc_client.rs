@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 
 use async_trait::async_trait;
-use ckb_jsonrpc_types::{BlockNumber, HeaderView, JsonBytes, TransactionView, TxStatus, Uint32};
+use ckb_jsonrpc_types::{
+    BlockNumber, BlockView, HeaderView, JsonBytes, TransactionView, TxStatus, Uint32,
+};
 use ckb_types::H256;
 use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
@@ -109,6 +111,13 @@ impl RpcClient {
         jsonrpc!("get_header_by_number", self, HeaderView, number)
     }
 
+    pub fn get_block_by_number(
+        &self,
+        number: BlockNumber,
+    ) -> impl Future<Output = Result<BlockView, io::Error>> {
+        jsonrpc!("get_block_by_number", self, BlockView, number)
+    }
+
     pub fn get_header(
         &self,
         hash: H256,
@@ -191,5 +200,9 @@ impl Rpc for RpcClient {
 
     async fn get_indexer_tip(&self) -> Result<IndexerTip, io::Error> {
         self.get_indexer_tip().await
+    }
+
+    async fn get_block_by_number(&self, number: BlockNumber) -> Result<BlockView, std::io::Error> {
+        self.get_block_by_number(number).await
     }
 }

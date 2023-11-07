@@ -1,9 +1,9 @@
-use ckb_jsonrpc_types::{BlockNumber, HeaderView};
+use ckb_jsonrpc_types::BlockNumber;
 use emitter_core::{
     cell_process::CellProcess,
     header_sync::HeaderSyncProcess,
     rpc_client::RpcClient,
-    types::{IndexerTip, RpcSearchKey},
+    types::{HeaderViewWithExtension, IndexerTip, RpcSearchKey},
     Submit, SubmitProcess,
 };
 use jsonrpsee::{
@@ -35,7 +35,7 @@ impl SubmitProcess for WsSubmit {
         }
     }
 
-    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool {
+    async fn submit_headers(&mut self, headers: Vec<HeaderViewWithExtension>) -> bool {
         if headers.is_empty() {
             return true;
         }

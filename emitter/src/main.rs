@@ -3,8 +3,11 @@ mod rpc_server;
 mod ws_subscription;
 
 use async_trait::async_trait;
-use ckb_jsonrpc_types::HeaderView;
-use emitter_core::{rpc_client::RpcClient, types::IndexerTip, Submit, SubmitProcess, TipState};
+use emitter_core::{
+    rpc_client::RpcClient,
+    types::{HeaderViewWithExtension, IndexerTip},
+    Submit, SubmitProcess, TipState,
+};
 use jsonrpsee::server::ServerBuilder;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -166,7 +169,7 @@ async fn submit_cells(submits: Vec<Submit>) {
     }
 }
 
-async fn submit_headers(headers: Vec<HeaderView>) {
+async fn submit_headers(headers: Vec<HeaderViewWithExtension>) {
     for header in headers {
         println!("{}", serde_json::to_string_pretty(&header).unwrap())
     }
@@ -185,7 +188,7 @@ impl SubmitProcess for RpcSubmit {
         true
     }
 
-    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool {
+    async fn submit_headers(&mut self, headers: Vec<HeaderViewWithExtension>) -> bool {
         submit_headers(headers).await;
         true
     }

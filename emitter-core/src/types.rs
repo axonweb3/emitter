@@ -164,3 +164,19 @@ impl RpcSearchKeyFilter {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, Hash, PartialEq, Eq)]
+pub struct HeaderViewWithExtension {
+    pub inner: ckb_jsonrpc_types::HeaderView,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extension: Option<ckb_jsonrpc_types::JsonBytes>,
+}
+
+impl From<ckb_jsonrpc_types::BlockView> for HeaderViewWithExtension {
+    fn from(value: ckb_jsonrpc_types::BlockView) -> Self {
+        HeaderViewWithExtension {
+            inner: value.header,
+            extension: value.extension,
+        }
+    }
+}

@@ -23,11 +23,11 @@ pub mod types;
 
 use async_trait::async_trait;
 use ckb_jsonrpc_types::{
-    BlockNumber, CellInfo, HeaderView, JsonBytes, OutPoint, TransactionView, Uint32,
+    BlockNumber, BlockView, CellInfo, HeaderView, JsonBytes, OutPoint, TransactionView, Uint32,
 };
 use ckb_types::H256;
 use serde::{Deserialize, Serialize};
-use types::{IndexerTip, Order, Pagination, SearchKey, Tx};
+use types::{HeaderViewWithExtension, IndexerTip, Order, Pagination, SearchKey, Tx};
 
 // Cell changes on a single block
 #[derive(Serialize, Deserialize)]
@@ -47,7 +47,7 @@ pub trait SubmitProcess {
     fn is_closed(&self) -> bool;
     // if false return, it means this cell process should be shutdown
     async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool;
-    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool;
+    async fn submit_headers(&mut self, headers: Vec<HeaderViewWithExtension>) -> bool;
 }
 
 #[async_trait]
@@ -70,6 +70,9 @@ pub trait Rpc {
         -> Result<HeaderView, std::io::Error>;
     // ckb indexer `get_indexer_tip`
     async fn get_indexer_tip(&self) -> Result<IndexerTip, std::io::Error>;
+
+    // ckb rpc `get_block_by_number`
+    async fn get_block_by_number(&self, number: BlockNumber) -> Result<BlockView, std::io::Error>;
 }
 
 impl TipState for IndexerTip {
