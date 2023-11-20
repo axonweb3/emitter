@@ -3,27 +3,3 @@ resolver = "2"
 
 members = ["emitter", "emitter-core"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-ckb-jsonrpc-types = "0.106"
-ckb-types = "0.106"
-
-anyhow = "1.0"
-ethers = "1.0"
-ethers-core = "1.0"
-ethers-signers = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-reqwest = { version = "0.11", features = ["json"] }
-tokio = { version = "1", features = ["full"] }
-futures = "0.3"
-jsonrpc-core = "18.0"
-jsonrpsee = { version = "0.15", features = [
-    "http-server",
-    "macros",
-    "ws-server",
-] }
-dashmap = { version = "5", features = ["serde"] }
-log = "0.4"
-env_logger = "0.10.0"
-clap = { version = "4", features = ["cargo"] }

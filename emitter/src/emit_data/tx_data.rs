@@ -2,7 +2,9 @@ use ckb_jsonrpc_types::{CellInfo, OutPoint, Script, ScriptHashType};
 use ethers::abi::AbiEncode;
 use ethers::core::types::Bytes;
 
-use crate::emit_data::image_cell_abi;
+use emitter_core::types::HeaderViewWithExtension;
+
+use crate::emit_data::{ckb_light_client_abi, image_cell_abi};
 use crate::Submit;
 
 pub fn convert_blocks(data: Vec<Submit>) -> Vec<u8> {
@@ -18,23 +20,32 @@ pub fn convert_blocks(data: Vec<Submit>) -> Vec<u8> {
     image_cell_abi::UpdateCall { blocks }.encode()
 }
 
-// header:  convert_header(&data.header),
-// fn convert_header(header: &HeaderView) -> image_cell_abi::Header {
-//     image_cell_abi::Header {
-//         version:           header.inner.version.into(),
-//         compact_target:    header.inner.compact_target.into(),
-//         timestamp:         header.inner.timestamp.into(),
-//         number:            header.inner.number.into(),
-//         epoch:             header.inner.epoch.into(),
-//         parent_hash:       header.inner.parent_hash.to_owned().into(),
-//         transactions_root: header.inner.transactions_root.to_owned().into(),
-//         proposals_hash:    header.inner.proposals_hash.to_owned().into(),
-//         uncles_hash:       header.inner.extra_hash.to_owned().into(),
-//         dao:               header.inner.dao.0,
-//         nonce:             header.inner.nonce.into(),
-//         block_hash:        header.hash.to_owned().into(),
-//     }
-// }
+pub fn convert_headers(headers: Vec<HeaderViewWithExtension>) -> Vec<u8> {
+    let mut raw_headers = Vec::with_capacity(headers.len());
+    for header in headers {
+        let raw = ckb_light_client_abi::Header {
+            version: header.inner.inner.version.into(),
+            compact_target: header.inner.inner.compact_target.into(),
+            timestamp: header.inner.inner.timestamp.into(),
+            number: header.inner.inner.number.into(),
+            epoch: header.inner.inner.epoch.into(),
+            parent_hash: header.inner.inner.parent_hash.to_owned().into(),
+            transactions_root: header.inner.inner.transactions_root.to_owned().into(),
+            proposals_hash: header.inner.inner.proposals_hash.to_owned().into(),
+            extra_hash: header.inner.inner.extra_hash.to_owned().into(),
+            dao: header.inner.inner.dao.0,
+            nonce: header.inner.inner.nonce.into(),
+            block_hash: header.inner.hash.to_owned().into(),
+            extension: header.extension.unwrap_or_default().into_bytes().into(),
+        };
+        raw_headers.push(raw);
+    }
+
+    ckb_light_client_abi::UpdateCall {
+        headers: raw_headers,
+    }
+    .encode()
+}
 
 fn convert_inputs(inputs: &Vec<OutPoint>) -> Vec<image_cell_abi::OutPoint> {
     let mut res = Vec::new();

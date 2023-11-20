@@ -18,21 +18,11 @@ use std::sync::{
 };
 
 use crate::{
-    emit_data::eth_tx::{send_eth_tx, IMAGE_CELL_ADDRESS},
-    emit_data::tx_data::convert_blocks,
+    emit_data::eth_tx::{send_eth_tx, CKB_LIGHT_CLIENT_ADDRESS, IMAGE_CELL_ADDRESS},
+    emit_data::tx_data::{convert_blocks, convert_headers},
     global_state::GlobalState,
     rpc_server::{EmitterRpc, EmitterServer},
 };
-use emit_data::eth_tx::{send_eth_tx, IMAGE_CELL_ADDRESS};
-use emit_data::tx_data::convert_blocks;
-use global_state::GlobalState;
-use rpc_client::{IndexerTip, RpcClient};
-use rpc_server::{EmitterRpc, EmitterServer};
-
-mod emit_data;
-mod global_state;
-mod rpc_server;
-mod ws_subscription;
 
 #[tokio::main]
 async fn main() {
@@ -128,40 +118,17 @@ async fn main() {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Submit {
-    header: HeaderView,
-    inputs: Vec<OutPoint>,
-    outputs: Vec<(OutPoint, CellInfo)>,
-}
-
 async fn submit_cells(axon_url: &str, submits: Vec<Submit>) {
-    // for sub in submits.iter() {
-    //     println!("{}", serde_json::to_string_pretty(sub).unwrap());
-    // }
-
     if let Err(e) = send_eth_tx(axon_url, convert_blocks(submits), IMAGE_CELL_ADDRESS).await {
-        println!("emitter submit tx error: {e}")
+        println!("emitter submit cells tx error: {e}")
     };
 }
 
-async fn submit_headers(_headers: Vec<HeaderView>) {
-    // for header in headers {
-    //     println!("{}", serde_json::to_string_pretty(&header).unwrap())
-    // }
-}
-
-#[async_trait]
-pub(crate) trait SubmitProcess {
-    fn is_closed(&self) -> bool;
-    // if false return, it means this cell process should be shutdown
-    async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool;
-    async fn submit_headers(&mut self, headers: Vec<HeaderView>) -> bool;
-}
-
-pub(crate) trait TipState {
-    fn load(&self) -> &IndexerTip;
-    fn update(&mut self, current: IndexerTip);
+async fn submit_headers(axon_url: &str, headers: Vec<HeaderViewWithExtension>) {
+    if let Err(e) = send_eth_tx(axon_url, convert_headers(headers), CKB_LIGHT_CLIENT_ADDRESS).await
+    {
+        println!("emitter submit headers tx error: {e}")
+    };
 }
 
 struct ScanTipInner(AtomicPtr<IndexerTip>);
@@ -221,18 +188,6 @@ impl<'a> Deserialize<'a> for ScanTip {
     }
 }
 
-async fn submit_cells(submits: Vec<Submit>) {
-    for sub in submits {
-        println!("{}", serde_json::to_string_pretty(&sub).unwrap())
-    }
-}
-
-async fn submit_headers(headers: Vec<HeaderViewWithExtension>) {
-    for header in headers {
-        println!("{}", serde_json::to_string_pretty(&header).unwrap())
-    }
-}
-
 pub(crate) struct RpcSubmit {
     pub axon_url: String,
 }
@@ -249,7 +204,7 @@ impl SubmitProcess for RpcSubmit {
     }
 
     async fn submit_headers(&mut self, headers: Vec<HeaderViewWithExtension>) -> bool {
-        submit_headers(headers).await;
+        submit_headers(&self.axon_url, headers).await;
         true
     }
 }
