@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 
 use anyhow::Result;
+use ethers::core::k256::ecdsa::SigningKey;
 use ethers::prelude::*;
 use ethers::types::transaction::eip2718::TypedTransaction::Legacy;
 use ethers::types::{Address, TransactionRequest};
@@ -11,10 +12,7 @@ pub const CKB_LIGHT_CLIENT_ADDRESS: Address = system_contract_address(0x4);
 
 pub async fn send_eth_tx(axon_url: &str, data: Vec<u8>, to: Address) -> Result<()> {
     let provider = Provider::<Http>::try_from(axon_url)?;
-    let wallet = MnemonicBuilder::<English>::default()
-        .phrase("test test test test test test test test test test test junk")
-        .build()
-        .unwrap();
+    let wallet = wallet(None);
 
     let from: Address = wallet.address();
     let nonce = provider.get_transaction_count(from, None).await?;
@@ -38,6 +36,17 @@ pub async fn send_eth_tx(axon_url: &str, data: Vec<u8>, to: Address) -> Result<(
         .expect("failed to send eth tx");
 
     Ok(())
+}
+
+pub fn wallet(private_key: Option<&[u8]>) -> &'static Wallet<SigningKey> {
+    static WALLET: std::sync::OnceLock<Wallet<SigningKey>> = std::sync::OnceLock::new();
+    WALLET.get_or_init(|| match private_key {
+        Some(s) => LocalWallet::from_bytes(s).expect("failed to create wallet"),
+        None => MnemonicBuilder::<English>::default()
+            .phrase("test test test test test test test test test test test junk")
+            .build()
+            .unwrap(),
+    })
 }
 
 const fn system_contract_address(addr: u8) -> H160 {

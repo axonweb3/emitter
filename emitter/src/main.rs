@@ -18,7 +18,7 @@ use std::sync::{
 };
 
 use crate::{
-    emit_data::eth_tx::{send_eth_tx, CKB_LIGHT_CLIENT_ADDRESS, IMAGE_CELL_ADDRESS},
+    emit_data::eth_tx::{send_eth_tx, wallet, CKB_LIGHT_CLIENT_ADDRESS, IMAGE_CELL_ADDRESS},
     emit_data::tx_data::{convert_blocks, convert_headers},
     global_state::GlobalState,
     rpc_server::{EmitterRpc, EmitterServer},
@@ -57,6 +57,13 @@ async fn main() {
         .action(clap::ArgAction::Set)
     )
     .arg(
+        clap::Arg::new("private_path")
+        .short('p')
+        .help("Sets the private key path to use")
+        .help("The Axon trasaction signer key, use to construct transaction, default is axon demo wallet")
+        .action(clap::ArgAction::Set),
+    )
+    .arg(
         clap::Arg::new("ws")
         .long("ws")
         .conflicts_with("store_path")
@@ -69,6 +76,9 @@ async fn main() {
     let client = RpcClient::new(matches.get_one::<String>("ckb_uri").unwrap());
 
     let listen_url = matches.get_one::<String>("listen_uri").unwrap();
+    if let Some(priv_path) = matches.get_one::<String>("private_path") {
+        load_privkey_from_file(priv_path);
+    }
     if matches.get_flag("ws") {
         let rpc = ws_subscription::ws_subscription_module(client).await;
         let handle = ServerBuilder::new()
@@ -207,4 +217,15 @@ impl SubmitProcess for RpcSubmit {
         submit_headers(&self.axon_url, headers).await;
         true
     }
+}
+
+fn load_privkey_from_file(privkey_path: &str) {
+    use std::io::Read;
+    let privkey = std::fs::File::open(privkey_path)
+        .and_then(|mut f| {
+            let mut buffer = Vec::new();
+            f.read_to_end(&mut buffer).map(|_| buffer)
+        })
+        .expect("failed to parse private key file");
+    wallet(Some(&privkey));
 }
