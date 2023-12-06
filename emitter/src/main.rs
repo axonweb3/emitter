@@ -1,3 +1,4 @@
+mod emit_data;
 mod global_state;
 mod rpc_server;
 mod ws_subscription;
@@ -17,6 +18,8 @@ use std::sync::{
 };
 
 use crate::{
+    emit_data::eth_tx::{send_eth_tx, wallet, CKB_LIGHT_CLIENT_ADDRESS, IMAGE_CELL_ADDRESS},
+    emit_data::tx_data::{convert_blocks, convert_headers},
     global_state::GlobalState,
     rpc_server::{EmitterRpc, EmitterServer},
 };
@@ -47,6 +50,20 @@ async fn main() {
         .required(true)
         .action(clap::ArgAction::Set),
     ).arg(
+        clap::Arg::new("axon_uri")
+        .long("i")
+        .default_value("http://127.0.0.1:8080")
+        .help("The Axon listening address, default http://127.0.0.1:8080")
+        .action(clap::ArgAction::Set)
+    )
+    .arg(
+        clap::Arg::new("private_path")
+        .short('p')
+        .help("Sets the private key path to use")
+        .help("The Axon trasaction signer key, use to construct transaction, default is axon demo wallet")
+        .action(clap::ArgAction::Set),
+    )
+    .arg(
         clap::Arg::new("ws")
         .long("ws")
         .conflicts_with("store_path")
@@ -59,6 +76,9 @@ async fn main() {
     let client = RpcClient::new(matches.get_one::<String>("ckb_uri").unwrap());
 
     let listen_url = matches.get_one::<String>("listen_uri").unwrap();
+    if let Some(priv_path) = matches.get_one::<String>("private_path") {
+        load_privkey_from_file(priv_path);
+    }
     if matches.get_flag("ws") {
         let rpc = ws_subscription::ws_subscription_module(client).await;
         let handle = ServerBuilder::new()
@@ -76,6 +96,7 @@ async fn main() {
         let mut global = GlobalState::new(
             matches.get_one::<String>("store_path").unwrap().into(),
             genesis,
+            matches.get_one::<String>("axon_uri").unwrap().into(),
         );
 
         let state = global.state.clone();
@@ -90,6 +111,7 @@ async fn main() {
             state,
             cell_handles,
             client,
+            axon_url: matches.get_one::<String>("axon_uri").unwrap().into(),
         }
         .into_rpc();
 
@@ -104,6 +126,19 @@ async fn main() {
         log::info!("listen on {}", listen_url);
         handle.stopped().await;
     }
+}
+
+async fn submit_cells(axon_url: &str, submits: Vec<Submit>) {
+    if let Err(e) = send_eth_tx(axon_url, convert_blocks(submits), IMAGE_CELL_ADDRESS).await {
+        println!("emitter submit cells tx error: {e}")
+    };
+}
+
+async fn submit_headers(axon_url: &str, headers: Vec<HeaderViewWithExtension>) {
+    if let Err(e) = send_eth_tx(axon_url, convert_headers(headers), CKB_LIGHT_CLIENT_ADDRESS).await
+    {
+        println!("emitter submit headers tx error: {e}")
+    };
 }
 
 struct ScanTipInner(AtomicPtr<IndexerTip>);
@@ -163,19 +198,9 @@ impl<'a> Deserialize<'a> for ScanTip {
     }
 }
 
-async fn submit_cells(submits: Vec<Submit>) {
-    for sub in submits {
-        println!("{}", serde_json::to_string_pretty(&sub).unwrap())
-    }
+pub(crate) struct RpcSubmit {
+    pub axon_url: String,
 }
-
-async fn submit_headers(headers: Vec<HeaderViewWithExtension>) {
-    for header in headers {
-        println!("{}", serde_json::to_string_pretty(&header).unwrap())
-    }
-}
-
-pub(crate) struct RpcSubmit;
 
 #[async_trait]
 impl SubmitProcess for RpcSubmit {
@@ -184,12 +209,23 @@ impl SubmitProcess for RpcSubmit {
     }
 
     async fn submit_cells(&mut self, cells: Vec<Submit>) -> bool {
-        submit_cells(cells).await;
+        submit_cells(&self.axon_url, cells).await;
         true
     }
 
     async fn submit_headers(&mut self, headers: Vec<HeaderViewWithExtension>) -> bool {
-        submit_headers(headers).await;
+        submit_headers(&self.axon_url, headers).await;
         true
     }
+}
+
+fn load_privkey_from_file(privkey_path: &str) {
+    use std::io::Read;
+    let privkey = std::fs::File::open(privkey_path)
+        .and_then(|mut f| {
+            let mut buffer = Vec::new();
+            f.read_to_end(&mut buffer).map(|_| buffer)
+        })
+        .expect("failed to parse private key file");
+    wallet(Some(&privkey));
 }

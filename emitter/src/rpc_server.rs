@@ -35,6 +35,7 @@ pub(crate) struct EmitterRpc {
     pub state: State,
     pub cell_handles: Arc<dashmap::DashMap<RpcSearchKey, tokio::task::JoinHandle<()>>>,
     pub client: RpcClient,
+    pub axon_url: String,
 }
 
 #[async_trait]
@@ -70,8 +71,14 @@ impl EmitterServer for EmitterRpc {
                 .cell_states
                 .insert(search_key.clone(), scan_tip.clone());
 
-            let mut cell_process =
-                CellProcess::new(search_key.clone(), scan_tip, self.client.clone(), RpcSubmit);
+            let mut cell_process = CellProcess::new(
+                search_key.clone(),
+                scan_tip,
+                self.client.clone(),
+                RpcSubmit {
+                    axon_url: self.axon_url.clone(),
+                },
+            );
 
             let handle = tokio::spawn(async move {
                 cell_process.run().await;

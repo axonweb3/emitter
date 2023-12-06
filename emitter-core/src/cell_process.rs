@@ -16,6 +16,7 @@ pub struct CellProcess<T, P, R> {
     process_fn: P,
     stop: bool,
 }
+
 impl<T, P, R> CellProcess<T, P, R>
 where
     T: TipState,
@@ -139,11 +140,19 @@ where
                     if total_size > 1024 * 1024 {
                         let mut cells = submits.drain().map(|(_, v)| v).collect::<Vec<Submit>>();
                         cells.sort_unstable_by_key(|v| v.header.inner.number.value());
+                        let temp_tip = {
+                            let h = &cells.last().unwrap().header;
+                            IndexerTip {
+                                block_number: h.inner.number,
+                                block_hash: h.hash.clone(),
+                            }
+                        };
 
                         if !self.process_fn.submit_cells(cells).await {
                             self.stop = true;
                             return;
                         }
+                        self.scan_tip.update(temp_tip);
                         total_size = 0;
                     }
                 }

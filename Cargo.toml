@@ -1,7 +1,5 @@
 [workspace]
 resolver = "2"
 
-members = [
-"emitter",
-"emitter-core"
-]
+members = ["emitter", "emitter-core"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
