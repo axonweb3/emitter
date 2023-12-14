@@ -8,7 +8,7 @@ use ethers::types::{Address, TransactionRequest};
 use ethers_signers::coins_bip39::English;
 
 pub const IMAGE_CELL_ADDRESS: Address = system_contract_address(0x3);
-pub const CKB_LIGHT_CLIENT_ADDRESS: Address = system_contract_address(0x4);
+pub const CKB_LIGHT_CLIENT_ADDRESS: Address = system_contract_address(0x2);
 
 pub async fn send_eth_tx(axon_url: &str, data: Vec<u8>, to: Address) -> Result<()> {
     let provider = Provider::<Http>::try_from(axon_url)?;
@@ -16,9 +16,10 @@ pub async fn send_eth_tx(axon_url: &str, data: Vec<u8>, to: Address) -> Result<(
 
     let from: Address = wallet.address();
     let nonce = provider.get_transaction_count(from, None).await?;
+    let chain_id = provider.get_chainid().await?;
 
     let transaction_request = TransactionRequest::new()
-        .chain_id(0x41786f6e)
+        .chain_id(chain_id.as_usize())
         .to(to)
         .data(data)
         .from(from)
