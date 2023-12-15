@@ -163,13 +163,24 @@ impl TipState for ScanTip {
     }
 
     fn update(&mut self, current: IndexerTip) {
-        let raw = self
+        let new_number = current.block_number;
+        let new_ptr = Box::into_raw(Box::new(current));
+        if let Ok(raw) = self
             .0
              .0
-            .swap(Box::into_raw(Box::new(current)), Ordering::AcqRel);
-
-        unsafe {
-            drop(Box::from_raw(raw));
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |raw| {
+                if unsafe { (*raw).block_number } < new_number {
+                    Some(new_ptr)
+                } else {
+                    None
+                }
+            })
+        {
+            unsafe {
+                drop(Box::from_raw(raw));
+            }
+        } else {
+            unsafe { drop(Box::from_raw(new_ptr)) }
         }
     }
 }
