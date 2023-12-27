@@ -129,16 +129,19 @@ async fn main() {
 }
 
 async fn submit_cells(axon_url: &str, submits: Vec<Submit>) {
-    if let Err(e) = send_eth_tx(axon_url, convert_blocks(submits), IMAGE_CELL_ADDRESS).await {
-        println!("emitter submit cells tx error: {e}")
-    };
+    let data = convert_blocks(submits);
+
+    while let Err(e) = send_eth_tx(axon_url, data.clone(), IMAGE_CELL_ADDRESS).await {
+        log::warn!("emitter submit cells tx error: {e}")
+    }
 }
 
 async fn submit_headers(axon_url: &str, headers: Vec<HeaderViewWithExtension>) {
-    if let Err(e) = send_eth_tx(axon_url, convert_headers(headers), CKB_LIGHT_CLIENT_ADDRESS).await
-    {
-        println!("emitter submit headers tx error: {e}")
-    };
+    let data = convert_headers(headers);
+
+    while let Err(e) = send_eth_tx(axon_url, data.clone(), CKB_LIGHT_CLIENT_ADDRESS).await {
+        log::warn!("emitter submit headers tx error: {e}")
+    }
 }
 
 struct ScanTipInner(AtomicPtr<IndexerTip>);

@@ -6,9 +6,9 @@ macro_rules! rpc_get {
                 Ok(r) => break r,
                 Err(e) => match e.kind() {
                     ConnectionRefused | ConnectionReset | ConnectionAborted | BrokenPipe => {
-                        panic!("{e}")
+                        log::error!("rpc get with serious error: {e}")
                     }
-                    _ => (),
+                    _ => log::warn!("rpc get with error: {e}"),
                 },
             }
         }

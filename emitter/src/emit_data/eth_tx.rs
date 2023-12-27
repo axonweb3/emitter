@@ -30,11 +30,10 @@ pub async fn send_eth_tx(axon_url: &str, data: Vec<u8>, to: Address) -> Result<(
     let tx = Legacy(transaction_request);
     let signature: Signature = wallet.sign_transaction(&tx).await?;
 
-    provider
-        .send_raw_transaction(tx.rlp_signed(&signature))
-        .await?
-        .await?
-        .expect("failed to send eth tx");
+    let tx_raw = tx.rlp_signed(&signature);
+    while let None = provider.send_raw_transaction(tx_raw.clone()).await?.await? {
+        log::warn!("can't get axon tx receipt, send tx fails, retry...")
+    }
 
     Ok(())
 }
